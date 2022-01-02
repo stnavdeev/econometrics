@@ -1,0 +1,185 @@
+---
+title: "Cencored regression, weak IV, and quantile regression"
+subtitle: "Tutorial 1"
+date: "Stanislav Avdeev"
+output:
+  xaringan::moon_reader:
+    self_contained: TRUE
+    css: [default, metropolis, metropolis-fonts]
+    lib_dir: libs
+    # Run xaringan::summon_remark() for this
+    #chakra: libs/remark-latest.min.js
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+---
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE) 
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.width = 8, fig.height = 6)
+library(tidyverse)
+library(gganimate)
+library(estimatr)
+library(magick)
+library(dagitty)
+library(ggthemes)
+library(directlabels)
+library(ggdag)
+library(fixest)
+library(jtools)
+library(scales)
+library(Cairo)
+library(fabricatr)
+theme_metro <- function(x) {
+  theme_classic() + 
+  theme(panel.background = element_rect(color = '#FAFAFA',fill='#FAFAFA'),
+        plot.background = element_rect(color = '#FAFAFA',fill='#FAFAFA'),
+        text = element_text(size = 16),
+        axis.title.x = element_text(hjust = 1),
+        axis.title.y = element_text(hjust = 1, angle = 0))
+}
+theme_void_metro <- function(x) {
+  theme_void() + 
+  theme(panel.background = element_rect(color = '#FAFAFA',fill='#FAFAFA'),
+        plot.background = element_rect(color = '#FAFAFA',fill='#FAFAFA'),
+        text = element_text(size = 16))
+}
+theme_metro_regtitle <- function(x) {
+  theme_classic() + 
+  theme(panel.background = element_rect(color = '#FAFAFA',fill='#FAFAFA'),
+        plot.background = element_rect(color = '#FAFAFA',fill='#FAFAFA'),
+        text = element_text(size = 16))
+}
+```
+
+
+# Tutorials
+
+* 7 TA sessions
+* 6 TA sessions are about lecture material
+* The last session is primarily about exam and remaining questions about the course material (TBA)
+* Send me any questions you want to discuss before each TA session
+* Use Canvas or send me an email
+* Alternately, leave your questions anonymously here: https://www.menti.com/c6uyd9qan4 (I will update the link each week on Canvas)
+
+---
+
+# Assignments
+
+* Due date: 11:59pm on Sundays (the first assignment is an exception: 11:59am on Tuesday)
+* Assignments are graded within a week from the deadline
+* Solutions will not be shared so if you want to discuss a specific exercise, let me know before the TA session (you submit your solutions on Sunday, thus, we can discuss any questions on the following TA session on Tuesday)
+
+---
+
+# Course objective
+* The key objective of the course is **applying** microeconometric techniques rather than **deriving** econometric and statistical properties of estimators.
+* In other words, there’s way less of this:
+
+\begin{align*}
+  \text{plim} \hat{\beta}_{OLS} = \beta + \text{plim} (\frac{1}{N}X'X)^{-1} \text{plim} \frac{1}{N} X' \epsilon = \beta + Q^{-1} \times \text{plim} \frac{1}{N} X' \epsilon
+\end{align*}
+
+* And way more of this:
+
+```{r, echo=TRUE, eval=FALSE}
+tibble(groups = sort(rep(1:10, 600)), time = rep(sort(rep(1:6, 100)), 10)) %>%
+  mutate(Treated = I(groups > 5) * I(time > 3)) %>%
+  mutate(Y = groups + time + Treated*5 + rnorm(6000))
+m <- feols(Y ~ Treated | groups + time, data = tb)
+```
+
+If you would like to go deeper into the former, take Advanced Econometrics I and II next year
+
+---
+
+# Weak instrument problem
+
+- Weak instrument problem means that we probably shouldn't be using IV in small samples
+- This also means that it's really important that $cov(X, Z)$ is not small
+- If $Z$ has only a trivial effect on $X$, then it's not *relevant* - even if it's truly exogenous, it does not matter because there's no variation in $X$ we can isolate with it
+- And our small-sample bias will be big
+
+---
+
+# Weak instrument problem
+
+- There are some rules of thumb for how strong an instrument must be to be counted as "not weak"
+- A t-statistic above 3, or an F statistic from a joint test of the instruments that is 10 or above
+- These rules of thumb aren't great - selecting a model on the basis of significance naturally biases your results
+- What you really want is to know the *population* effect of $Z$ on $X$ - you want the F-statistic from *that* to be 10+. Of course we don't actually know that.
+
+---
+
+# Weak instrument problem: simulation
+
+- Let's look at the output of `feols()` using a simulated dataset
+
+```{r, echo = TRUE}
+set.seed(777)
+df <- fabricate(
+  N = 200,
+  Y = rpois(N, lambda = 4),
+  Z = rbinom(N, 1, prob = 0.4),
+  X1 = Z * rbinom(N, 1, prob = 0.8),
+  X2 = rnorm(N),
+  G = sample(letters[1:4], N, replace = TRUE)
+)
+```
+
+---
+
+# Weak instrument problem: simulation
+
+```{r, echo = TRUE}
+iv <- feols(Y ~ X2 | X1 ~ Z, data = df, se = 'hetero')
+thef <- fitstat(iv, 'ivf', verbose = FALSE)$`ivf1::X1`$stat
+iv
+```
+
+- `r scales::number(thef, accuracy = .01)` is way above 10! We're probably fine in this particular regression
+
+---
+
+# Overidentification tests
+
+- "Overidentification" just means we have more identifying conditions (validity assumptions) than we actually need. We only need one instrument, but we have two (or more)
+- So we can compare what we get using each instrument individually
+- If we assume that *at least one of them is valid*, and they both produce similar results, then that's evidence that *both* are valid
+
+---
+
+# Overidentification tests: simulation
+
+- We can do this using `diagnostics = TRUE` in `iv_robust` again
+
+```{r, echo = TRUE}
+set.seed(1000)
+# Create data where Z1 is valid and Z2 is invalid
+df <- tibble(Z1 = rnorm(1000), Z2 = rnorm(1000)) %>%
+  mutate(X = Z1 + Z2 + rnorm(1000)) %>%
+  # True effect is 1
+  mutate(Y = X + Z2 + rnorm(1000))
+
+iv <- feols(Y ~ 1 | X ~ Z1 + Z2, data = df, se = 'hetero')
+fitstat(iv, 'sargan')
+```
+ - That's a small p-value! We can reject that the results are similar for each IV, telling us that one is endogenous (although without seeing the actual data generating process we couldn't guess if it were $Z1$ or $Z2$ )
+
+---
+
+# Overidentification tests: simulation
+
+- How different are they? What did the test see that it was comparing? 
+
+```{r, echo = TRUE}
+iv1 <- feols(Y ~ 1 | X ~ Z1, data = df)
+iv2 <- feols(Y ~ 1 | X ~ Z2, data = df)
+export_summs(iv1, iv2, statistics = c(N = 'nobs'))
+```
+
+Notice the first model gives an accurate coefficient of 1
+
+    
+  

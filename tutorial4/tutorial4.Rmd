@@ -1,0 +1,257 @@
+---
+title: "Natural experiments and LATE"
+subtitle: "Tutorial 4"
+date: "Stanislav Avdeev"
+output:
+  xaringan::moon_reader:
+    self_contained: TRUE
+    css: [default, metropolis, metropolis-fonts]
+    lib_dir: libs
+    # Run xaringan::summon_remark() for this
+    #chakra: libs/remark-latest.min.js
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+---
+
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE) 
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.width = 8, fig.height = 6)
+library(tidyverse)
+library(estimatr)
+library(dagitty)
+library(ggdag)
+library(fixest)
+library(jtools)
+library(scales)
+library(Cairo)
+library(vtable)
+theme_metro <- function(x) {
+  theme_classic() + 
+  theme(panel.background = element_rect(color = '#FAFAFA',fill='#FAFAFA'),
+        plot.background = element_rect(color = '#FAFAFA',fill='#FAFAFA'),
+        text = element_text(size = 16),
+        axis.title.x = element_text(hjust = 1),
+        axis.title.y = element_text(hjust = 1, angle = 0))
+}
+theme_void_metro <- function(x) {
+  theme_void() + 
+  theme(panel.background = element_rect(color = '#FAFAFA',fill='#FAFAFA'),
+        plot.background = element_rect(color = '#FAFAFA',fill='#FAFAFA'),
+        text = element_text(size = 16))
+}
+theme_metro_regtitle <- function(x) {
+  theme_classic() + 
+  theme(panel.background = element_rect(color = '#FAFAFA',fill='#FAFAFA'),
+        plot.background = element_rect(color = '#FAFAFA',fill='#FAFAFA'),
+        text = element_text(size = 16))
+}
+```
+
+# Natural experiments
+
+- A *natural experiment* can take many forms, but the basic idea is that something experiment-like occurs without the researcher's control
+- In other words, *there is a form of exogenous variation in the wild*
+- (or at least conditionally exogenous)
+- And we can use that exogenous variation to identify our effect of interest
+
+---
+
+# Natural experiments
+
+- Let's take a classic example of the Vietnam lottery draft (Angrist and Krueger 1992)
+- During the Vietnam war, men were drafted into the US military based on their birthdates. The birthdates of the year were put into random order, and men were drafted in that order
+- Basically, randomly assigning you to military service!
+- Being assigned to the draft early gave you extra reason to go to college so you could avoid it - they wanted to know how college affected your earnings
+
+---
+
+# Natural experiments
+
+- Even though the researcher has no control over this process (and would likely do it a little differently if they could)...
+- If we *isolate just the part of military service that is driven by this exogenous variation*...
+- Then *that variation in military service is, also, exogenous*
+- Just like in an experiment we only use data from people in the experiment
+
+---
+
+# The Vietnam draft
+
+```{r, dev = 'CairoPNG', fig.height = 4}
+dag <- dagify(Earnings ~ College + AnnoyingEndogeneity,
+              College ~ AnnoyingEndogeneity + Birthdate,
+              coords=list(
+                x=c(Birthdate = 0,College = 3, AnnoyingEndogeneity = 4, Earnings = 5),
+                y=c(Birthdate = 1, College = 1, AnnoyingEndogeneity = 2, Earnings = 1)
+              )) %>% tidy_dagitty()
+ggdag_classic(dag,node_size=10) + 
+  theme_dag_blank() + 
+  expand_limits(x=c(-.5,2.5))
+
+```
+
+---
+
+# The Vietnam draft
+
+- In an experiment, we'd limit the data just to people in the experiment, and then see how your assignment into treatment relates to your outcome
+- Here, everyone is "in the experiment", and also assignment isn't perfect!
+- Plenty of people will be assigned to an early draft number but *not* go to college
+
+---
+
+# The Vietnam draft
+
+- Remember, our goal is to *isolate the variation in treatment that is exogenous*
+- So, we can just... do that!
+- Predict $College$ using $Birthdate$ in a regular OLS regression (or more specifically, predict $College$ using your draft order based on $Birthdate$)
+- And then use *only those predicted values* in predicting $Earnings$
+- *That variation we've isolated* is exogenous
+- This particular approach to natural experiments is called *instrumental variables*
+
+---
+
+# Better LATE than never
+
+- IV only allows variation in the treatment *that is driven by the instrument* - that's the whole point
+- This also means that we can only see the effect *among people for whom the instrument drives their treatment*
+- If a treatment improves *your* outcome by 2, but *my* outcome by only 1, and the instrument has a *big effect* on whether you get treatment, but only a *little effect* on me, then our IV estimate will be a lot closer to 2 than to 1
+- This is a "local average treatment effect" - our estimate is *local* to people who are affected by the instrument (and even *more* local to those affected more heavily than others)
+
+---
+
+# Better LATE than never
+
+- This means that the IV estimate won't be representative of *everyone's* effect
+- Or even of *the people who actually were treated*
+- It might be less informative about *what would happen if we treated more people* than if we did an actual experiment
+- But we might have to live with that to be able to use the cleaner identification
+
+---
+
+# Imperfect compliance
+
+- Let's apply one of the common uses of instrumental variables, which actually *is* when you have a randomized experiment
+- In normal circumstances, if we have an experiment and assign people with `R`, we just compare `Y` across values of `R`:
+
+```{r, echo=TRUE}
+df <- tibble(R = sample(c(0,1),500,replace=T)) %>%
+  mutate(X = R, Y = 5*X + rnorm(500))
+#The truth is a difference of 5
+df %>% group_by(R) %>% summarize(Y=mean(Y))
+```
+
+---
+
+# Imperfect compliance
+
+- But what happens if you run a randomized experiment and assign people with `R`, but not everyone does what you say? Some "treated" people don't get the treatment, and some "untreated" people do get it
+- When this happens, we can't just compare `Y` across `R`
+- But `R` is still a valid instrument!
+
+```{r, echo=TRUE}
+df <- tibble(R = sample(c(0,1),500,replace=T)) %>%
+  #We tell them whether or not to get treated
+  mutate(X = R) %>%
+  #But some of them don't listen! 20% do the OPPOSITE!
+  mutate(X = ifelse(runif(500) > .8,1-R,R)) %>%
+  mutate(Y = 5*X + rnorm(500))
+#The truth is a difference of 5
+df %>% group_by(R) %>% summarize(Y=mean(Y))
+```
+
+---
+
+# Imperfect compliance
+
+- So let's do IV (instrumental variables); `R` is the IV.
+
+```{r, echo=TRUE}
+iv <- df %>% 
+  group_by(R) %>% 
+  summarize(Y = mean(Y), X = mean(X))
+iv
+#Remember, since our instrument is binary, we want the slope
+(iv$Y[2] - iv$Y[1])/(iv$X[2]-iv$X[1])
+#Truth is 5!
+```
+
+---
+
+# Imperfect compliance
+
+- When you run an experiment, you can certainly *assign* people to treatment but you can't *make them do it*
+- That means we have *non-compliance*
+- Especially a problem if it's non-random, since that brings endogeneity back in
+- What can we do about that?
+
+---
+
+# Intention-to-treat
+
+- If we have some noncompliance and just ignore the problem, we end up with an *intent-to-treat* (ITT) result
+- Basically, it all still works, except the effect we get isn't *the effect of treatment*, it's *the effect of being assigned to treatment*, which is different
+- This can still be handy, especially if treatment might be assigned the same way in the future
+- This will in general *underestimate* the effect of the treatment itself, since we include people in the "treated" category who weren't actually treated, and people in the "untreated" category who were, so the two groups get closer together. Smaller effect
+
+---
+
+# Two stage least squares
+
+- If we can observe whether people actually received treatment (separate from us assigning it to them), we can use two-stage least squares (2SLS) to adjust the ITT so that we get the effect of actual treatment instead
+- Basically, 2SLS takes the effect of assignment and scales it up by how much the treatment assignment increases the treatment rate
+- Keep in mind this is more representative of the effect *among those who respond really strongly to treatment*
+- And doesn't work if people *intentionally do the opposite of what you say*
+
+---
+
+# Two stage least squares
+
+- If it's more complex - you have control variables, etc., you can't just do the scaling, and actually have to perform two-stage least squares.
+- In the **fixest** package we conveniently also have `feols()` which can do two-stage least squares
+- If `treatment` is "actually getting treatment" and `assignment` is "being assigned to treatment" then we have
+
+```{r, eval = FALSE, echo = TRUE}
+library(fixest)
+feols(outcome ~ 1 | treatment ~ assignment, data = experimentdata)
+```
+
+---
+
+# Two stage least squares
+
+- Let's simulate it:
+
+```{r, echo = TRUE}
+set.seed(2000)
+tb <- tibble(assignment = sample(c(TRUE,FALSE),1000, replace = TRUE)) %>%
+  # Start with assignment working
+  mutate(treatment = assignment) %>%
+  # Randomly reassign 20% of people not based on treatment at all
+  mutate(treatment = case_when(
+    sample(c(TRUE,FALSE),1000,prob = c(.8,.2), replace = TRUE) ~ assignment,
+    TRUE ~ sample(c(TRUE,FALSE),1000, replace = TRUE))) %>%
+  # True effect is 2
+  mutate(outcome = 2*treatment + 3*rnorm(1000))
+# Intent-to-treat
+itt <- lm(outcome ~ treatment, data = tb)
+# 2sls to adjust for compliance
+twosls <- feols(outcome ~ 1 | treatment ~ assignment, data = tb)
+# Do the scaling by hand (since this is a simple case)
+treatment_increase <- (tb %>% filter(assignment) %>% pull(treatment) %>% 
+                       mean()) - (tb %>% filter(!assignment) %>% pull(treatment) %>% mean())
+assignment_effect <- (tb %>% filter(assignment) %>% pull(outcome) %>% 
+                      mean()) - (tb %>% filter(!assignment) %>% pull(outcome) %>% mean())
+scaled <- assignment_effect/treatment_increase
+```
+
+---
+
+# Two stage least squares
+
+```{r, echo = TRUE}
+c(assignment_effect, treatment_increase, scaled)
+export_summs(itt, twosls, statistics = c(N = 'nobs'))
+```

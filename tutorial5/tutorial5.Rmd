@@ -1,0 +1,590 @@
+---
+title: "Difference in Differences Design"
+subtitle: "Tutorial 5"
+date: "Stanislav Avdeev"
+output:
+  xaringan::moon_reader:
+    self_contained: TRUE
+    css: [default, metropolis, metropolis-fonts]
+    lib_dir: libs
+    # Run xaringan::summon_remark() for this
+    #chakra: libs/remark-latest.min.js
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+---
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE) 
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.width = 8, fig.height = 6)
+library(tidyverse)
+library(gganimate)
+library(estimatr)
+library(magick)
+library(dagitty)
+library(ggthemes)
+library(directlabels)
+library(ggdag)
+library(fixest)
+library(jtools)
+library(scales)
+library(Cairo)
+library(modelsummary)
+theme_metro <- function(x) {
+  theme_classic() + 
+  theme(panel.background = element_rect(color = '#FAFAFA',fill='#FAFAFA'),
+        plot.background = element_rect(color = '#FAFAFA',fill='#FAFAFA'),
+        text = element_text(size = 16),
+        axis.title.x = element_text(hjust = 1),
+        axis.title.y = element_text(hjust = 1, angle = 0))
+}
+theme_void_metro <- function(x) {
+  theme_void() + 
+  theme(panel.background = element_rect(color = '#FAFAFA',fill='#FAFAFA'),
+        plot.background = element_rect(color = '#FAFAFA',fill='#FAFAFA'),
+        text = element_text(size = 16))
+}
+theme_metro_regtitle <- function(x) {
+  theme_classic() + 
+  theme(panel.background = element_rect(color = '#FAFAFA',fill='#FAFAFA'),
+        plot.background = element_rect(color = '#FAFAFA',fill='#FAFAFA'),
+        text = element_text(size = 16))
+}
+```
+
+# Difference-in-differences
+
+- The basic idea is to take fixed effects *and then compare the within variation across groups*
+- We have a treated group that we observe *both before and after they're treated*
+- And we have an untreated group
+- The treated and control groups probably aren't identical! So... we *control for group* like with fixed effects
+- Crucially, we need to have a group (or groups) that receives a treatment
+- And, we need to observe them both *before* and *after* they get their treatment
+- Observing each individual (or group) multiple times, kind of like we did with fixed effects
+- The question DID tries to answer is "what was the effect of (some policy) on the people who were affected by it?"
+
+---
+
+# Difference-in-differences
+
+- We can add a *control group* that did *not* get the treatment
+- Then, any changes that are the result of *time* should show up for that control group, and we can get rid of them!
+- The change for the treated group from before to after is because of both treatment and time. If we measure the time effect using our control, and subtract that out, we're left with just the effect of treatment!
+
+---
+
+# DID as two-way fixed effects
+
+- We want an estimate that can take *within variation* for groups
+- also adjusting for time effects
+- and then compare that within variation across treated vs. control groups
+- Sounds like a job for fixed effects
+
+---
+
+# DID as two-way fixed effects
+
+- For standard DID where treatment goes into effect at a particular time, we can estimate DID with
+
+$$ Y = \beta_i + \beta_t + \beta_1Treated + \varepsilon $$
+
+- Where $\beta_i$ is group fixed effects, $\beta_t$ is time-period fixed effects, and $Treated$ is a binary indicator equal to 1 if you are currently being treated (in the treated group and after treatment)
+- $Treated = TreatedGroup\times After$
+- Typically run with standard errors clusteed at the group level (why?)
+
+---
+
+# DID as two-way fixed effects
+
+- Why this works is a bit easier to see if we limit it to a "2x2" DID (two groups, two time periods)
+
+$$ Y = \beta_0 + \beta_1TreatedGroup + \beta_2Post + \beta_3TreatedGroup\times Post + \varepsilon $$
+
+- $\beta_1$ is prior-period group diff, $\beta_2$ is shared time effect
+- $\beta_3$ is *how much bigger the $TreatedGroup$ effect gets after treatment vs. before, i.e. how much the gap grows
+- Difference-in-differences
+
+---
+
+# DID as two-way fixed effects
+
+```{r, echo = TRUE}
+set.seed(1500)
+tb <- tibble(groups = sort(rep(1:10,600)), time = rep(sort(rep(1:6,100)),10)) %>%
+  # Groups 6-10 are treated, time periods 4-6 are treated
+  mutate(Treated = I(groups > 5) * I(time > 3)) %>%
+  # True effect 5
+  mutate(Y = groups + time + Treated*5 + rnorm(6000))
+m <- feols(Y ~ Treated | groups + time, data = tb)
+msummary(m, stars = TRUE, gof_omit = 'AIC|BIC|Lik|F|Pseudo|Adj')
+```
+
+---
+
+# Difference-in-differences
+
+- We can use what we know about binary variables and interaction terms to get our DID
+
+$$Y_{it} = \beta_0 + \beta_1Post_t + \beta_2Treated_i + \beta_3Post_tTreated_i + \varepsilon_{it}$$
+where $Post_t$ is a binary variable for being in the post-treatment period, and $Treated_t$ is a binary variable for being in the treated group
+
+---
+
+# Difference-in-differences: simulation
+
+```{r, echo = FALSE, eval=TRUE}
+set.seed(1500)
+```
+
+```{r, echo = TRUE}
+#Create our data
+diddata <- tibble(year = sample(2002:2010,10000,replace=T),
+                  group = sample(c('TreatedGroup','UntreatedGroup'),10000,replace=T)) %>%
+  mutate(post = (year >= 2007)) %>%
+  #Only let the treatment be applied to the treated group
+  mutate(D = post*(group=='TreatedGroup')) %>%
+  mutate(Y = 2*D + .5*year + rnorm(10000))
+#Now, get before-after differences for both groups
+means <- diddata %>% group_by(group,post) %>% summarize(Y=mean(Y))
+
+#Before-after difference for untreated, has time effect only
+bef.aft.untreated <-(means %>%  filter(group=='UntreatedGroup',post==1) %>% pull(Y)) - (means %>%  filter(group=='UntreatedGroup',post==0) %>% pull(Y))
+#Before-after for treated, has time and treatment effect
+bef.aft.treated <- (means %>%  filter(group=='TreatedGroup',post==1) %>% pull(Y)) -  (means %>%  filter(group=='TreatedGroup',post==0) %>% pull(Y))
+
+#Difference-in-Difference! Take the Time + Treatment effect, and remove the Time effect
+DID <- bef.aft.treated - bef.aft.untreated
+DID
+```
+
+---
+
+# Difference-in-differences
+
+- How can we interpret this using what we know?
+
+$$Y_{it} = \beta_0 + \beta_1Post_t + \beta_2Treated_i + \beta_3Post_tTreated_i + \varepsilon_{it}$$
+
+- $\beta_0$ is the prediction when $Treated_i = 0$ and $Post_t = 0$ $\rightarrow$ the Untreated Before mean!
+- $\beta_1$ is the *difference between* Before and After for $Treated_i = 0$ $\rightarrow$ Untreated (After - Before)
+- $\beta_2$ is the *difference between* Treated and Untreated for $Post_t = 0$ $\rightarrow$ Before (Treated - Untreated)
+- $\beta_3$ is *how much bigger the Before-After difference* is for $Treated_i = 1$ than for $Treated_i = 0$ $\rightarrow$ (Treated After - Before) - (Untreated After - Before) = DID!
+
+---
+# Difference-in-differences
+
+- This is our way of controlling for time
+- Of course, we're NOT accounting for the fact that our treatment and control groups may be different from each other
+- Except that we are! We're comparing each group to itself over time (controlling for group, like fixed effects), and then comparing *those differences* between groups (controlling for time). The Difference in the Differences!
+- Let's imagine there is an important difference between groups. We'll still get the same answer
+
+---
+
+# Difference-in-differences: simulation
+
+```{r, echo = TRUE}
+set.seed(1300)
+#Create our data
+diddata <- tibble(year = sample(2002:2010,10000,replace=T),
+                  group = sample(c('TreatedGroup','UntreatedGroup'),10000,replace=T)) %>%
+  mutate(post = (year >= 2007)) %>%
+  #Only let the treatment be applied to the treated group
+  mutate(D = post*(group=='TreatedGroup')) %>%
+  mutate(Y = 2*D + .5*year + (group == 'TreatedGroup') +  rnorm(10000))
+#Now, get before-after differences for both groups
+means <- diddata %>% group_by(group,post) %>% summarize(Y=mean(Y))
+
+#Before-after difference for untreated, has time effect only
+bef.aft.untreated <-(means %>%  filter(group=='UntreatedGroup',post==1) %>% pull(Y)) - (means %>%  filter(group=='UntreatedGroup',post==0) %>% pull(Y))
+#Before-after for treated, has time and treatment effect
+bef.aft.treated <- (means %>%  filter(group=='TreatedGroup',post==1) %>% pull(Y)) -  (means %>%  filter(group=='TreatedGroup',post==0) %>% pull(Y))
+
+#Difference-in-Difference! Take the Time + Treatment effect, and remove the Time effect
+DID <- bef.aft.treated - bef.aft.untreated
+DID
+```
+
+---
+
+# Difference-in-differences: graphically
+
+```{r, dev='CairoPNG', echo=FALSE, fig.width=8,fig.height=7}
+df <- data.frame(Control = c(rep("Control",150),rep("Treatment",150)),
+                 Time=rep(c(rep("Before",75),rep("After",75)),2)) %>%
+  mutate(Y = 2+2*(Control=="Treatment")+1*(Time=="After") + 1.5*(Control=="Treatment")*(Time=="After")+rnorm(300),state="1",
+         xaxisTime = (Time == "Before") + 2*(Time == "After") + (runif(300)-.5)*.95) %>%
+  group_by(Control,Time) %>%
+  mutate(mean_Y=mean(Y)) %>%
+  ungroup()
+
+df$Time <- factor(df$Time,levels=c("Before","After"))
+
+#Create segments
+dfseg <- df %>%
+  group_by(Control,Time) %>%
+  summarize(mean_Y = mean(mean_Y)) %>%
+  ungroup()
+
+diff <- filter(dfseg,Time=='After',Control=='Control')$mean_Y[1] - filter(dfseg,Time=='Before',Control=='Control')$mean_Y[1]
+
+dffull <- rbind(
+  #Step 1: Raw data only
+  df %>% mutate(state='1. Start with raw data.'),
+  #Step 2: Add Y-lines
+  df %>% mutate(state='2. Explain Y using Treatment and After.'),
+  #Step 3: Collapse to means
+  df %>% mutate(Y = mean_Y,state="3. Keep only what's explained by Treatment and After."),
+  #Step 4: Display time effect
+  df %>% mutate(Y = mean_Y,state="4. See how Control changed Before to After."),
+  #Step 5: Shift to remove time effect
+  df %>% mutate(Y = mean_Y 
+                - (Time=='After')*diff,
+                state="5. Remove the Before/After Control difference for both groups."),
+  #Step 6: Raw demeaned data only
+  df %>% mutate(Y = mean_Y 
+                - (Time=='After')*diff,
+                state='6. The remaining Before/After Treatment difference is the effect.'))
+
+
+
+p <- ggplot(dffull,aes(y=Y,x=xaxisTime,color=as.factor(Control)))+geom_point()+
+  guides(color=guide_legend(title="Group"))+
+  geom_vline(aes(xintercept=1.5),linetype='dashed')+
+  scale_color_colorblind()+
+  scale_x_continuous(
+    breaks = c(1, 2),
+    label = c("Before Treatment", "After Treatment")
+  )+xlab("Time")+
+  #The four lines for the four means
+  geom_segment(aes(x=ifelse(state %in% c('2. Explain Y using Treatment and After.',"3. Keep only what's explained by Treatment and After."),
+                            .5,NA),
+                   xend=1.5,y=filter(dfseg,Time=='Before',Control=='Control')$mean_Y[1],
+                   yend=filter(dfseg,Time=='Before',Control=='Control')$mean_Y[1]),size=1,color='black')+
+  geom_segment(aes(x=ifelse(state %in% c('2. Explain Y using Treatment and After.',"3. Keep only what's explained by Treatment and After."),
+                            .5,NA),
+                   xend=1.5,y=filter(dfseg,Time=='Before',Control=='Treatment')$mean_Y[1],
+                   yend=filter(dfseg,Time=='Before',Control=='Treatment')$mean_Y[1]),size=1,color="#E69F00")+
+  geom_segment(aes(x=ifelse(state %in% c('2. Explain Y using Treatment and After.',"3. Keep only what's explained by Treatment and After."),
+                            1.5,NA),
+                   xend=2.5,y=filter(dfseg,Time=='After',Control=='Control')$mean_Y[1],
+                   yend=filter(dfseg,Time=='After',Control=='Control')$mean_Y[1]),size=1,color='black')+
+  geom_segment(aes(x=ifelse(state %in% c('2. Explain Y using Treatment and After.',"3. Keep only what's explained by Treatment and After."),
+                            1.5,NA),
+                   xend=2.5,y=filter(dfseg,Time=='After',Control=='Treatment')$mean_Y[1],
+                   yend=filter(dfseg,Time=='After',Control=='Treatment')$mean_Y[1]),size=1,color="#E69F00")+
+  #Line indicating treatment effect
+  geom_segment(aes(x=1.5,xend=1.5,
+                   y=ifelse(state=='6. The remaining Before/After Treatment difference is the effect.',
+                            filter(dfseg,Time=='After',Control=='Treatment')$mean_Y[1]-diff,NA),
+                   yend=filter(dfseg,Time=='Before',Control=='Treatment')$mean_Y[1]),size=1.5,color='blue')+
+  #Line indicating pre/post control difference
+  geom_segment(aes(x=1.5,xend=1.5,
+                   y=ifelse(state=="4. See how Control changed Before to After.",
+                            filter(dfseg,Time=='After',Control=='Control')$mean_Y[1],
+                            ifelse(state=="5. Remove the Before/After Control difference for both groups.",
+                                   filter(dfseg,Time=='Before',Control=='Control')$mean_Y[1],NA)),
+                   yend=filter(dfseg,Time=='Before',Control=='Control')$mean_Y[1]),size=1.5,color='blue')+
+  labs(title = 'The Difference-in-Difference Effect of Treatment \n{next_state}')+
+  transition_states(state,transition_length=c(6,16,6,16,6,6),state_length=c(50,22,12,22,12,50),wrap=FALSE)+
+  ease_aes('sine-in-out')+
+  exit_fade()+enter_fade()
+
+animate(p,nframes=150)
+```
+
+---
+
+# Empirical example: Mariel boatlift
+
+- The classic difference-in-differences example is the Mariel Boatlift
+- There's a lot of discussion these days on the impacts of immigration
+- Immigrants might provide additional labor market competition to people who already live here, driving down wages
+- Does this actually happen?
+
+---
+
+# Empirical example: Mariel boatlift
+
+- In 1980, Cuba very briefly lifted emigration restrictions
+- LOTS of people left the country very quickly, many of them going to Miami
+- The Miami labor force increased by 7% in a year
+- If immigrants were ever going to cause a problem for workers already there, seems like it would be happening here
+
+---
+
+# Empirical example: Mariel boatlift
+
+- David Card studied this using Difference-in-Differences, noticing that this influx of immigrants mainly affected Miami, and so other cities in the country could act as a control group
+- He used Atlanta, Houston, Los Angeles, and Tampa-St. Petersburg as comparisons
+- How did wages and unemployment of everyone other than Cubans change in Miami from 1979-80 to 81-85, and how did it change in the control cities?
+
+---
+
+# Empirical example: Mariel boatlift
+
+```{r, echo = FALSE}
+load('mariel.RData')
+df <- df %>% 
+  #Take out Cubans
+  filter(!(ethnic == 5),
+         #Remove NILF
+         !(esr %in% c(4,5,6,7))) %>%
+  #Calculate hourly wage
+  mutate(hourwage=earnwke/uhourse,
+         #and unemp
+         unemp = esr == 3) %>%
+  #no log problems
+  filter((hourwage > 2 | is.na(hourwage)),(uhourse > 0 | is.na(uhourse))) %>%
+  #adjust for inflation to 1980 prices
+  mutate(hourwage = case_when(
+    year==79 ~ hourwage/.88,
+    year==81 ~ hourwage/1.1,
+    year==82 ~ hourwage/1.17,
+    year==83 ~ hourwage/1.21,
+    year==84 ~ hourwage/1.26,
+    year==85 ~ hourwage/1.31
+  ))
+```
+
+```{r, echo=TRUE, eval=FALSE}
+#Take the log of wage and create our "after treatment" and "treated group" variables
+df <- mutate(df,lwage = log(hourwage),
+             post = year >= 81,
+             miami = smsarank == 26)
+
+#Then we can do our difference in difference!
+means <- df %>% group_by(post,miami) %>% summarize(lwage = mean(lwage),unemp=mean(unemp))
+means
+```
+
+```{r, echo=FALSE, eval=TRUE}
+#Take the log of wage and create our "after treatment" and "treated group" variables
+df <- mutate(df,lwage = log(hourwage),
+             post = year >= 81,
+             miami = smsarank == 26)
+
+#Then we can do our difference in difference!
+means <- df %>% group_by(post,miami) %>% summarize(lwage = mean(lwage,na.rm=TRUE),unemp=mean(unemp))
+means
+
+df.loweduc <- filter(df,gradeat < 12)
+means.le <- df.loweduc %>% group_by(post,miami) %>% summarize(lwage = mean(lwage,na.rm=TRUE),unemp=mean(unemp))
+```
+
+---
+
+# Empirical example: Mariel boatlift
+
+- Did the wages of non-Cubans in Miami drop with the influx?
+- `means$lwage[4] - means$lwage[2]` = `r round(means$lwage[4] - means$lwage[2],3)`. Uh oh!
+- But how about in the control cities?
+- `means$lwage[3] - means$lwage[1]` = `r round(means$lwage[3] - means$lwage[1],3)`
+- Things were getting worse everywhere! How about the overall difference-in-difference? 
+- `r round(means$lwage[4] - means$lwage[2] - (means$lwage[3] - means$lwage[1]),3)`! Wages actually got BETTER for others with the influx of immigrants
+
+---
+
+# Empirical example: Mariel boatlift
+
+- We can do the same thing for unemployment!
+- Difference in Miami: `means$unemp[4] - means$unemp[2]` = `r round(means$unemp[4] - means$unemp[2],3)`
+- Difference in control cities: `means$unemp[3] - means$unemp[1]` = `r round(means$unemp[3] - means$unemp[1],3)`
+- Difference-in-differences: `r round(means$unemp[4] - means$unemp[2] - (means$unemp[3] - means$unemp[1]),3)`. 
+- So unemployment did rise more in Miami
+- Similar results if we look only at those without a HS degree, who many Cubanos would be competing with directly (wage DID `r round(means.le$lwage[4] - means.le$lwage[2] - (means.le$lwage[3] - means.le$lwage[1]),3)`, unemployment `r round(means.le$unemp[4] - means.le$unemp[2] - (means.le$unemp[3] - means.le$unemp[1]),3)`)
+
+---
+
+# Adding more groups and time periods
+
+- We can extend this to having more than two groups, some of which get treated and some of which don't
+- And more than two time periods! Multiple before and/or multiple after
+- We don't have a full set of interaction terms, we still only need the one, which we can now call $CurrentlyTreated_{it}$
+
+---
+
+# Adding more groups and time periods
+
+- Let's make some quick example data to show this off, with the first treated period being period 7 and the treated groups being 1 and 9, and a true effect of 3
+
+```{r, echo = TRUE}
+set.seed(10600)
+#did_data <- tibble(grop = sort(rep(1:10, 10)),
+                   #time = rep(1:10, 10)) %>%
+  #mutate(CurrentlyTreated  = group %in% c(1,9) & time >= 7) %>%
+  #mutate(Outcome = group + time + 3*CurrentlyTreated + rnorm(100))
+#did_data
+```
+
+---
+
+# Adding more groups and time periods
+
+```{r, echo = TRUE}
+#feols(Outcome ~ CurrentlyTreated | group + time, data = did_data) %>%
+  #export_summs(statistics = c(N = 'nobs'))
+```
+
+---
+
+# Choosing control groups
+
+- For this to work we have to *pick the control group* to compare to
+- We just need a control group for which parallel trends holds - if there had been no treatment, both treated and untreated would have had the same time effect
+- We can't check this directly (since it's counterfactual), only make it plausible
+- More-similar groups are likely more plausible, and nothing should be changing for the control group at the same time as treatment
+
+---
+
+# Choosing control groups
+
+- This gives us a causal effect as long as *the only reason the gap changed* was the treatment
+- In fixed effects, we need to assume that there's no uncontrolled endogenous variation across time
+- In DID, we need to assume that there's no uncontrolled endogenous variation *across this particular before/after time change*
+- An easier assumption to justify but still an assumption
+
+---
+
+# Parallel trends
+
+- This assumption - that nothing else changes at the same time, is the poorly-named "parallel trends"
+- Again, this assumes that, *if the Treatment hadn't happened to anyone*, the gap between the two would have stayed the same
+- Sometimes people check whether this assumption is plausible by seeing if *prior trends* are the same for Treated and Untreated - if we have multiple pre-treatment periods, was the gap changing a lot during that period?
+- Sometimes people also "adjust for prior trends" to fix parallel trends violations, or use related methods like synthetic control
+- Formally, prior trends being the same tells us nothing about parallel trends
+- But it can be suggestive
+- Just because *prior trends* are equal doesn't mean that *parallel trends* holds
+- *Parallel trends* is about what the before-after change *would have been* - we can't see that
+
+---
+
+# Parallel trends: tests
+
+- There are two main ways we can use *prior* trends to at least test the plausibility of parallel trends, if not test parallel trends directly itself
+- First, we can check for differences in *prior trends*
+- Second, we can do a *placebo test*
+
+---
+
+# Parallel trends: tests
+
+- If the two groups were already trending towards each other, or away from each other, before treatment, it's kind of hard to believe that parallel trends holds
+- They *probably* would have continued trending together/apart, breaking parallel trends. We'd mix up the continuation of the trend with the effect of treatment
+- We can test this by looking for differences in trends with an interaction term. 
+- Also, *look at the data*! We did that last time.
+- Sometimes people "fix" a difference in prior trends by controlling for prior trends by group, but tread lightly as this can introduce its own biases
+
+---
+
+# Parallel trends: tests
+
+- Test if the interaction terms are jointly significant
+- Fail to reject - no evidence of differences in prior trends. That doesn't *prove* parallel trends but failing this test would make prior trends less *plausible*
+
+---
+
+# Placebo tests
+
+- Many causal inference designs can be tested using *placebo tests*
+- Placebo tests pretend there's a treatment where there isn't one, and looks for an effect
+- If it finds one, that indicates there's something wrong with the design, finding an effect when we know for a fact there isn't one
+- In the case of DID, we could (rare) drop the treated groups and pretend some untreated groups are treated, look for effects, or (common) drop the post-treatment data, pretend treatment happens at a different time, and check for an effect
+
+---
+
+# Placebo tests
+
+```{r, echo = TRUE}
+# Remember we already dropped post-treatment. Years left: 1991, 1992, 1993, 1994. We need both pre- and post- data, 
+# So we can pretend treatment happened in 1992 or 1993
+
+#m1 <- feols(work ~ Treatment | treated + year, data = df %>%
+              #mutate(Treatment = treated & year >= 1992))
+#m2 <- feols(work ~ Treatment | treated + year, data = df %>%
+              #mutate(Treatment = treated & year >= 1993))
+
+#msummary(list(m1,m2), stars = TRUE, gof_omit = 'Lik|AIC|BIC|F|Pseudo|Adj')
+```
+
+---
+
+# Prior trends and placebo
+
+- Those are significant effects
+- However, for both placebo tests and, especially, prior trends, we're a little less concerned with significance than *meaningful size* of the violations
+- After all, with enough sample size *anything* is significant
+- And those treatment effects are fairly tiny
+
+---
+
+# Dynamic DID
+
+- We've limited ourselves to "before" and "after" but this isn't all we have!
+- But that averages out the treatment across the entire "after" period. What if an effect takes time to get going? Or fades out?
+- We can also estimate a *dynamic effect* where we allow the effect to be different at different lengths since the treatment
+- This also lets us do a sort of placebo test, since we can also get effects *before* treatment, which should be zero
+
+---
+
+# Dynamic DID
+
+- Simply interact $TreatedGroup$ with binary indicators for time period, making sure that the last period before treatment is expected to show up is the reference
+
+$$ Y = \beta_0 + \beta_tTreatedGroup + \varepsilon $$
+- Then, usually, plot it. **fixest** makes this easy with its `i()` interaction function
+
+---
+
+# Dynamic DID
+
+```{r, echo = TRUE}
+df <- read_csv('eitc.csv') %>%
+  mutate(treated = 1*(children > 0)) %>%
+  mutate(year = factor(year))
+#m <- feols(work ~ i(treated, year, drop = "1993") | treated + year, data = df)
+```
+
+---
+
+# Dynamic DID
+
+```{r, echo = FALSE}
+#msummary(m, stars = TRUE, gof_omit='AIC|BIC|Lik|F|Adj|Pseudo')
+```
+
+# Dynamic DID
+
+```{r, echo = TRUE}
+#coefplot(m, ref = c('1993' = 3), pt.join = TRUE)
+```
+
+---
+
+# Dynamic DID
+
+- We see no effect before treatment, which is good
+- No *immediate* effect in 1994, but then a consistent effect afterwards
+
+---
+
+# Problems with Two-Way Fixed Effects
+
+- One common variant of difference-in-difference is the *rollout design*, in which there are multiple treated groups, each being treated at a different time
+- For example, wanting to know the effect of gay marriage on $Y$, and noting that it became legal in different states at different times before becoming legal across the country
+- Rollout designs are possibly the most common form of DID you see
+- As discovered *recently* (and popularized by Goodman-Bacon 2018), two-way fixed effects does *not* work to estimate DID when you have a rollout design
+- Think about what fixed effects does - it leaves you only with within variation
+- Two types of individuals without *any* within variation between periods A and B: the never-treated and the already-treated
+- So the already-treated can end up getting used as controls in a rollout
+- This becomes a big problem especially if the effect grows/shrinks over time. We'll mistake changes in treatment effect for effects of treatment, and in the wrong direction
+
+---
+
+# Callaway and Sant'Anna
+
+- There are a few new estimators that deal with rollout designs properly. One is Callaway and Sant'Anna (see the **did** package)
+- They take each period of treatment and consider the group treated *on that particular period*
+- They explicitly only use untreated groups as controls
+- And they also use *matching* to improve the selection of control groups for each period's treated group
+- We won't go super deep into this method, but it is one way to approach the problem

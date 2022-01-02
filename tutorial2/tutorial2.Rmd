@@ -1,0 +1,460 @@
+---
+title: "Panel data models"
+subtitle: "Tutorial 2"
+date: "Stanislav Avdeev"
+output:
+  xaringan::moon_reader:
+    self_contained: TRUE
+    css: [default, metropolis, metropolis-fonts]
+    lib_dir: libs
+    # Run xaringan::summon_remark() for this
+    #chakra: libs/remark-latest.min.js
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+---
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE) 
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.width = 8, fig.height = 6)
+library(tidyverse)
+library(gganimate)
+library(fixest)
+library(magick)
+library(wooldridge)
+library(dagitty)
+library(ggdag)
+library(jtools)
+library(scales)
+library(Cairo)
+library(transformr)
+library(huxtable)
+theme_metro <- function(x) {
+  theme_classic() + 
+  theme(panel.background = element_rect(color = '#FAFAFA',fill='#FAFAFA'),
+        plot.background = element_rect(color = '#FAFAFA',fill='#FAFAFA'),
+        text = element_text(size = 16),
+        axis.title.x = element_text(hjust = 1),
+        axis.title.y = element_text(hjust = 1, angle = 0))
+}
+theme_void_metro <- function(x) {
+  theme_void() + 
+  theme(panel.background = element_rect(color = '#FAFAFA',fill='#FAFAFA'),
+        plot.background = element_rect(color = '#FAFAFA',fill='#FAFAFA'),
+        text = element_text(size = 16))
+}
+theme_metro_regtitle <- function(x) {
+  theme_classic() + 
+  theme(panel.background = element_rect(color = '#FAFAFA',fill='#FAFAFA'),
+        plot.background = element_rect(color = '#FAFAFA',fill='#FAFAFA'),
+        text = element_text(size = 16))
+}
+```
+
+# Panel data
+
+- Panel data is when you observe the same individual over multiple time periods
+- "Individual" could be a person, a company, a state, a country, etc. There are $N$ individuals in the panel data
+- "Time period" could be a year, a month, a day, etc. There are $T$ time periods in the data
+- We assume that we observe each individual the same number of times, i.e. a *balanced* panel (so we have $N\times T$ observations)
+- You can use these estimators with unbalanced panels too, it just gets a little more complex
+
+---
+
+# Panel data
+
+- Here's what (a few rows from) a panel data set looks like - a variable for individual (county), a variable for time (year), and then the data
+
+```{r, dev = 'CairoPNG'}
+data(crime4)
+crime4 %>%
+  select(county, year, crmrte, prbarr) %>%
+  rename(County = county,
+         Year = year,
+         CrimeRate = crmrte,
+         ProbofArrest = prbarr) %>%
+  slice(1:9) %>%
+  knitr::kable() %>%
+  kableExtra::add_footnote('9 rows out of 630. "Prob. of Arrest" is estimated probability of being arrested when you commit a crime', notation = 'none')
+```
+
+---
+
+# Between and within variation
+
+- Let's pick a few counties and graph this out
+
+```{r, dev = 'CairoPNG'}
+crime4 %>% 
+  filter(county %in% c(1,3,7, 23),
+         prbarr < .5) %>%
+  group_by(county) %>%
+  mutate(label = case_when(
+    crmrte == max(crmrte) ~ paste('County',county),
+    TRUE ~ NA_character_
+  )) %>%
+  ggplot(aes(x =  prbarr, y = crmrte, color = factor(county), label = label)) + 
+  geom_point() + 
+  geom_text(hjust = -.1, size = 14/.pt) + 
+  theme_metro_regtitle() + 
+  labs(x = 'Probability of Arrest', 
+       y = 'Crime Rate',
+       caption = 'One outlier eliminated in County 7.') + 
+  #scale_x_continuous(limits = c(.15, 2.5)) + 
+  guides(color = FALSE, label = FALSE) + 
+  scale_color_manual(values = c('black','blue','red','purple'))
+```
+
+---
+
+# Between and within variation
+
+- If we look at the overall variation by using the pooled OLS estimator, we get this
+
+```{r, dev = 'CairoPNG'}
+crime4 %>% 
+  filter(county %in% c(1,3,7, 23),
+         prbarr < .5) %>%
+  group_by(county) %>%
+  mutate(label = case_when(
+    crmrte == max(crmrte) ~ paste('County',county),
+    TRUE ~ NA_character_
+  )) %>%
+  ggplot(aes(x =  prbarr, y = crmrte, color = factor(county), label = label)) + 
+  geom_point() + 
+  geom_text(hjust = -.1, size = 14/.pt) + 
+  theme_metro_regtitle() + 
+  labs(x = 'Probability of Arrest', 
+       y = 'Crime Rate',
+       caption = 'One outlier eliminated in County 7.') + 
+  #scale_x_continuous(limits = c(.15, 2.5)) + 
+  guides(color = FALSE, label = FALSE) + 
+  scale_color_manual(values = c('black','blue','red','purple')) + 
+  geom_smooth(method = 'lm', aes(color = NULL, label = NULL), se = FALSE)
+```
+
+---
+
+# Between and within variation
+
+- **Between** variation is what we get if we look at the relationship between the *means of each county*
+
+```{r, dev = 'CairoPNG'}
+crime4 %>% 
+  filter(county %in% c(1,3,7, 23),
+         prbarr < .5) %>%
+  group_by(county) %>%
+  mutate(label = case_when(
+    crmrte == max(crmrte) ~ paste('County',county),
+    TRUE ~ NA_character_
+  ),
+  mcrm = mean(crmrte),
+  mpr = mean(prbarr)) %>%
+  ggplot(aes(x =  prbarr, y = crmrte, color = factor(county), label = label)) + 
+  geom_point() + 
+  geom_text(hjust = -.1, size = 14/.pt) + 
+  theme_metro_regtitle() + 
+  labs(x = 'Probability of Arrest', 
+       y = 'Crime Rate',
+       caption = 'One outlier eliminated in County 7.') + 
+  #scale_x_continuous(limits = c(.15, 2.5)) + 
+  guides(color = FALSE, label = FALSE) + 
+  scale_color_manual(values = c('black','blue','red','purple')) + 
+  geom_point(aes(x = mpr, y = mcrm), size = 20, shape = 3, color = 'darkorange') + 
+  annotate(geom = 'text', x = .3, y = .02, label = 'Means Within Each County', color = 'darkorange', size = 14/.pt)
+```
+
+---
+
+# Between and within variation
+
+- The individual year-to-year variation within county doesn't matter
+
+```{r, dev = 'CairoPNG'}
+crime4 %>% 
+  filter(county %in% c(1,3,7, 23),
+         prbarr < .5) %>%
+  group_by(county) %>%
+  mutate(label = case_when(
+    crmrte == max(crmrte) ~ paste('County',county),
+    TRUE ~ NA_character_
+  ),
+  mcrm = mean(crmrte),
+  mpr = mean(prbarr)) %>%
+  ggplot(aes(x =  prbarr, y = crmrte, color = factor(county), label = label)) + 
+  #geom_point() + 
+  #geom_text(hjust = -.1, size = 14/.pt) + 
+  theme_metro_regtitle() + 
+  labs(x = 'Probability of Arrest', 
+       y = 'Crime Rate',
+       caption = 'One outlier eliminated in County 7.') + 
+  #scale_x_continuous(limits = c(.15, 2.5)) + 
+  guides(color = FALSE, label = FALSE) + 
+  scale_color_manual(values = c('black','blue','red','purple')) + 
+  geom_point(aes(x = mpr, y = mcrm), size = 20, shape = 3, color = 'darkorange') + 
+  geom_smooth(aes(color = NULL), method = 'lm', se = FALSE)+
+  annotate(geom = 'text', x = .3, y = .02, label = 'OLS Fit on These Four Points', color = 'blue', size = 14/.pt)
+```
+
+---
+
+# Between and within variation
+
+- Within variation goes the other way - it treats those orange crosses as their own individualized sets of axes and looks at variation *within* county from year-to-year only!
+- We basically slide the crosses over on top of each other and then analyze *that* data
+
+```{r, echo=FALSE, fig.width=5, fig.height=4.5}
+cranim <- crime4 %>% 
+  filter(county %in% c(1,3,7, 23),
+         prbarr < .5) %>%
+  mutate(allcrm = mean(crmrte),
+         allmpr = mean(prbarr)) %>%
+  group_by(county) %>%
+  mutate(label = case_when(
+    crmrte == max(crmrte) ~ paste('County',county),
+    TRUE ~ NA_character_
+  ),
+  mcrm = mean(crmrte),
+  mpr = mean(prbarr),
+  stage = '1. Raw Data')
+cranim <- cranim %>%
+  bind_rows(cranim %>% 
+              mutate(crmrte = crmrte - mcrm + allcrm,
+                     prbarr = prbarr - mpr + allmpr,
+                     mcrm = allcrm,
+                     mpr = allmpr,
+                     stage = '2. Remove all between variation'))
+
+p <- ggplot(cranim, aes(x =  prbarr, y = crmrte, color = factor(county), label = label)) + 
+  geom_point() + 
+  geom_text(hjust = -.1, size = 14/.pt)  + 
+  labs(x = 'Probability of Arrest', 
+       y = 'Crime Rate',
+       caption = 'One outlier eliminated in County 7.') + 
+  #scale_x_continuous(limits = c(.15, 2.5)) + 
+  guides(color = FALSE, label = FALSE) + 
+  scale_color_manual(values = c('black','blue','red','purple')) + 
+  geom_smooth(aes(color = NULL), method = 'lm', se = FALSE)+
+  geom_point(aes(x = mpr, y = mcrm), size = 20, shape = 3, color = 'darkorange') + 
+  transition_states(stage) + 
+  theme_metro_regtitle()
+
+animate(p, nframes = 80)
+
+```
+
+---
+
+# Between and within variation
+
+- We can clearly see that *between counties* there's a strong positive relationship
+- But if you look *within* a given county, the relationship isn't that strong, and actually seems to be negative
+- Which would make sense - if you think your chances of getting arrested are high, that should be a deterrent to crime
+- We are ignoring all differences between counties and looking only at differences within counties
+- Fixed effects is sometimes also referred to as the “within” estimator
+
+---
+
+# Panel data model
+
+The $it$ subscript says this variable varies over individual $i$ and time $t$
+
+$$Y_{it} = \alpha + X_{it}' \beta + U_{it}$$
+
+- What if there are individual-level components in the error term causing omitted variable bias? 
+- $X_{it}$ might be related to the variable which is not in the model and thus in the error term
+- Regular omitted variable bias. If we don't adjust for the individual effect, we get a biased $\hat{\beta}$ 
+- So we really have this then:
+
+$$Y_{it} = \alpha + X_{it}' \beta + \eta_i + U_{it}$$
+---
+
+# Fixed effects: estimation
+
+- To estimate fixed effects model, we need to remove between variation so that all that's left is within variation
+- There are two main ways: *de-meaning* and *binary variables* (they give the same result, for balanced panels anyway)
+- Let's do de-meaning first, since it's most closely and obviously related to the "removing between variation" explanation we've been going for
+- The process here is simple
+
+1. For each variable $X_{it}$, $Y_{it}$, etc., get the mean value of that variable for each individual $\bar{X}_i, \bar{Y}_i$
+2. Subtract out that mean to get residuals $(X_{it} - \bar{X}_i), (Y_{it} - \bar{Y}_i)$
+3. Work with those residuals
+
+- That $\alpha$ and $\eta_u$ terms get absorbed
+- The residuals are, by construction, no longer related to the $\alpha_i$, so it no longer goes in the residuals
+
+$$Y_{it} - \bar{Y}_i = (X_{it} - \bar{X}_i)' \beta + (U_{it} - \bar{U_{i}})$$
+
+---
+
+# De-meaning: empirical application
+
+- We can use `group_by` to get means-within-groups and subtract them out
+
+```{r, echo = TRUE}
+data(crime4, package = 'wooldridge')
+crime4 <- crime4 %>%
+  # Filter to the data points from our graph
+  filter(county %in% c(1,3,7, 23),
+         prbarr < .5) %>%
+  group_by(county) %>%
+  mutate(mean_crime = mean(crmrte),
+         mean_prob = mean(prbarr)) %>%
+  mutate(demeaned_crime = crmrte - mean_crime,
+         demeaned_prob = prbarr - mean_prob)
+```
+
+---
+
+# De-meaning: empirical application
+
+```{r, echo = TRUE}
+orig_data <- lm(crmrte ~ prbarr, data = crime4)
+de_mean <- lm(demeaned_crime ~ demeaned_prob, data = crime4)
+export_summs(orig_data, de_mean)
+```
+
+---
+
+# De-meaning approach: interpreting a within relationship
+
+- How can we interpret that slope of `-0.03`?
+- This is all *within variation* so our interpretation must be *within-county*
+- If we think we've causally identified it, it means that "raising the arrest probability by 1 percentage point in a county reduces the number of crimes per person in that county by .0003".
+- We're basically "controlling for county"
+- So your interpretation should think of it in that way - *holding county constant* i.e. *comparing two observations with the same value of county* i.e. *comparing a county to itself at a different point in time*
+
+---
+
+# Least squares dummy variable (LSDV) approach
+
+- De-meaning the data is not the only way to do it
+- And sometimes it can make the standard errors wonky, since they don't recognize that you've estimated those means
+- You can also use the least squares dummy variable (another word for "binary variable") method
+- We just treat "individual" like the categorical variable it is and add it as a control
+
+---
+
+# LSDV approach: empirical application
+
+```{r, echo = TRUE}
+lsdv <- lm(crmrte ~ prbarr + factor(county), data = crime4)
+export_summs(orig_data, de_mean, lsdv, coefs = c('prbarr', 'demeaned_prob'))
+```
+
+---
+
+# LSDV approach: interpretation
+
+- The result is the same, as it should be
+- Except for that $R^2$ - why is it so much higher for LSDV?
+- Because de-meaning takes out the part explained by the fixed effects ( $\alpha_i$ ) *before* running the regression, while LSDV does it *in* the regression
+- So the .94 is the portion of `crmrte` explained by `prbarr` *and* `county`, whereas the .21 is the "within - $R^2$ " - the portion of *the within variation* that's explained by `prbarr`
+- Neither is wrong (and the .94 isn't "better"), they're just measuring different things
+
+---
+
+# LSDV approach: interpretation
+
+- A benefit of the LSDV approach is that it calculates the fixed effects $\alpha_i$ for you
+- We left those out of the table with the `coefs` argument of `export_summs` (we rarely want them) but here they are:
+
+```{r}
+lsdv
+```
+
+- Interpretation is exactly the same as with a categorical variable - we have an omitted county, and these show the difference relative to that omitted county
+
+---
+
+# LSDV approach: interpretation
+
+- This also makes clear another element of what's happening. Just like with a categorical variable, the line is moving *up and down* to meet the counties
+- Graphically, de-meaning moves all the points together in the middle to draw a line, while LSDV moves the line up and down to meet the points
+
+```{r, dev = 'CairoPNG'}
+crime4 %>%
+  ungroup() %>%
+  mutate(pred = predict(lsdv)) %>%
+  group_by(county) %>%
+  mutate(label = case_when(
+    crmrte == max(crmrte) ~ paste('County',county),
+    TRUE ~ NA_character_
+  )) %>%
+  ggplot(aes(x =  prbarr, y = crmrte, color = factor(county), label = label)) + 
+  geom_point() + 
+  geom_text(hjust = -.1, size = 14/.pt) + 
+  geom_line(aes(y = pred, group = county), color = 'blue') +
+  theme_metro_regtitle() + 
+  labs(x = 'Probability of Arrest', 
+       y = 'Crime Rate',
+       caption = 'One outlier eliminated in County 7.') + 
+  #scale_x_continuous(limits = c(.15, 2.5)) + 
+  guides(color = FALSE, label = FALSE) + 
+  scale_color_manual(values = c('black','blue','red','purple'))
+```
+
+---
+
+# LSDV approach: interpretation
+
+- LSDV is computationally expensive
+- If there are a lot of individuals, or big data, or if you have many sets of fixed effects, it can be very slow
+- Most professionally made fixed-effects commands use de-meaning, but then adjust the standard errors properly
+- They also leave the fixed effects coefficients off the regression table by default
+
+---
+
+# Panel data: estimation
+
+- Applied researchers rarely do either of these, and rather will use a command specifically designed for fixed effects
+- In R, there are three big ones: `feols` in **fixest**, `felm` in **lfe**, `plm` in **plm**, or or `lm_robust` in **estimatr**
+- `feols` seems to be a better choice. 
+- **fixest** does all sorts of other neat stuff like fixed effects in nonlinear models like logit, regression tables, joint-test functions, and on and on
+- It’s very fast, and can be easily adjusted to do FE with other regression methods like logit, or combined with instrumental variables
+- It clusters the standard errors by the first fixed effect by default, which we usually want
+
+---
+
+# Panel data: estimation
+
+```{r, echo = TRUE}
+pro <- feols(crmrte ~ prbarr | county, data = crime4)
+export_summs(de_mean, pro, statistics = c(N = 'nobs', R2 = 'r.squared'))
+```
+
+---
+
+# Limits to fixed effects
+
+- Remember we are isolating within variation
+- If an individual has no within variation, say their treatment never changes, they basically get washed out entirely!
+- A fixed-effects regression wouldn’t represent them. And can’t use FE to study things that are fixed over time
+- And in general if there’s not a lot of within variation, FE is going to be very noisy. Make sure there’s variation to study!
+
+---
+
+# Limits to fixed effects
+
+1. They don't control for anything that has within variation
+2. They control away *everything* that's between-only, so we can't see the effect of anything that's between-only
+3. Anything with only a *little* within variation will have most of its variation washed out too
+4. The estimate pays the most attention to individuals with *lots of variation in treatment*
+
+- 2 and 3 can be addressed by using "random effects" instead
+
+---
+
+# Inference
+- It’s common to cluster standard errors at the level of the fixed effects, since it seems likely that errors would be correlated over time (autocorrelated errors)
+- It’s possible to have more than one set of fixed effects
+- But interpretation gets tricky - think through what variation in X you’re looking at at that point
+
+---
+
+# References
+
+* Slides
+    
+  
