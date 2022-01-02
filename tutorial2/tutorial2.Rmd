@@ -401,7 +401,7 @@ crime4 %>%
 
 - LSDV is computationally expensive
 - If there are a lot of individuals, or big data, or if you have many sets of fixed effects, it can be very slow
-- Most professionally made fixed-effects commands use de-meaning, but then adjust the standard errors properly
+- Most packages implementing fixed-effects commands use de-meaning, but then adjust the standard errors properly
 - They also leave the fixed effects coefficients off the regression table by default
 
 ---
