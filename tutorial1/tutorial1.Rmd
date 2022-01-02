@@ -84,7 +84,9 @@ theme_metro_regtitle <- function(x) {
 * And way more of this:
 
 ```{r, echo=TRUE, eval=FALSE}
-tibble(groups = sort(rep(1:10, 600)), time = rep(sort(rep(1:6, 100)), 10)) %>%
+library(fixest)
+
+tb <- tibble(groups = sort(rep(1:10, 600)), time = rep(sort(rep(1:6, 100)), 10)) %>%
   mutate(Treated = I(groups > 5) * I(time > 3)) %>%
   mutate(Y = groups + time + Treated*5 + rnorm(6000))
 m <- feols(Y ~ Treated | groups + time, data = tb)
@@ -117,7 +119,9 @@ If you would like to go deeper into the former, take Advanced Econometrics I and
 - Let's look at the output of `feols()` using a simulated dataset
 
 ```{r, echo = TRUE}
+library(fabricate)
 set.seed(777)
+
 df <- fabricate(
   N = 200,
   Y = rpois(N, lambda = 4),
