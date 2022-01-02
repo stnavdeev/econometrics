@@ -108,7 +108,7 @@ ggplot(rdd,aes(x=test,y=GATE))+geom_point()+
 
 # Regression Discontinuity
 
-- Here's how it look when we look at the actual outcome
+- Here's how it looks when we consider the actual outcome
 
 ```{r, echo=FALSE, eval=TRUE, fig.width=7, fig.height=5.5}
 ggplot(rdd,aes(x=test,y=earn,color=GATE))+geom_point()+
@@ -282,9 +282,9 @@ animate(p,nframes=80)
 
 # Regression Discontinuity in Regression
 
-- How can re make a model for RDD?
-- We want to: look for a jump at a cutoff point
-- Get as good an idea of what the outcome is just on either side of the cutoff
+- How can we model an RDD setting?
+- We want to look for a jump at a cutoff point
+- Get as good an idea as posible of what the outcome is just on either side of the cutoff
 - So...
 
 ---
@@ -320,11 +320,13 @@ ggplot(tb, aes(x = X, y = Y, group = X > .5)) +
 
 # Choices!
 
-- This is of course the simplest version!
+- This is of course the simplest version of the specification!
+
 - Things to consider:
-- Bandwidth
-- Functional form
-- Controls
+- Non-parametric specification
+  - Bandwidth choice
+- Functional form (polynomial estimation)
+- Robustness to Controls
 
 ---
 
@@ -333,7 +335,8 @@ ggplot(tb, aes(x = X, y = Y, group = X > .5)) +
 - The idea of RDD is that people *just around the cutoff* are very much comparable
 - Basically random if your test score is 79 vs. 81 if the cutoff is 80, for example
 - So people far away from the cutoff aren't too informative! At best they help determine the slope of the fitted lines
-- So... drop 'em!
+- Imbens and Gelman (2018) show that the "naive" RDD estimators place heigh weights on observations far from the threshold
+- So... it's better to drop 'em!
 
 ---
 
@@ -344,6 +347,7 @@ ggplot(tb, aes(x = X, y = Y, group = X > .5)) +
 - How wide should the bandwidth be?
 - There's a big wide literature on *optimal bandwidth selection* which balances the addition of bias (from adding people far away from the cutoff who may have back doors) vs. variance (from adding more people so as to improve estimator precision)
 - We won't be doing this by hand, we can often rely on an RDD command to do this for us
+- The `rdrobust` package in R implements some state of the art literature on this subject.
 
 ---
 
@@ -1014,7 +1018,7 @@ msummary(list('Instrumental Variables' = ivr), stars = TRUE, gof_omit = 'AIC|BIC
 - Options for fuzzy RD
 - Optimal bandwidth selection
 - Bias correction
-- Lots of options (no control variables though)
+- Lots of options (including the addition of covariates)
 - Unfortunately doesn't work with `modelsummary`
 
 ---
@@ -1066,7 +1070,7 @@ rdplot(tb$Y, tb$Running, c = .5)
 - But often, professional researchers won't do it that way!
 - We'll use packages and formulas that do things like "picking a bandwidth (window)" for us in a smart way, or not relying so strongly on linearity
 - The **rdrobust** package does just that!
-- Let's look at `help(rdrobust, packge = 'rdrobust')`
+- Let's look at `help(rdrobust, package = 'rdrobust')`
 
 ---
 
@@ -1074,7 +1078,7 @@ rdplot(tb$Y, tb$Running, c = .5)
 
 - We can specify an RDD model by just telling it the dependent variable $Y$, the running variable $X$, and the cutoff $c$.
 - We can also specify how many polynomials to us with `p`
-- (it applies the polynomials more locally than our linear OLS models do - a bit more flexible without weird corner preditions)
+- (it applies the polynomials more locally than our linear OLS models do - a bit more flexible without weird corner predictions)
 - It will also pick a window for us with `h`
 - Plenty of other options
 - Including a `fuzzy` option to specify actual treatment outside of the running variable/cutoff combo
