@@ -184,7 +184,7 @@ iv
 
 - When you run an experiment, you can certainly *assign* people to treatment but you can't *make them do it*
 - That means we have *non-compliance*
-- Especially a problem if it's non-random, since that brings endogeneity back in
+- Especially a problem if it's non-random, since that brings endogeneity back in the picture
 - What can we do about that?
 
 ---
