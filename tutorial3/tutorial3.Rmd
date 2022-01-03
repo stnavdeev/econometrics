@@ -144,7 +144,7 @@ df %>%
 
 - Identifying effects requires us to understand the **data generating process**
 - And once we understand that DGP, knowing what calculations we need to do to isolate our effect
-- Often these will require taking some conditional values (controls)
+- Often these will involve conditional on several covariates
 - Or **isolating the variation we want** in some other way
 
 ---

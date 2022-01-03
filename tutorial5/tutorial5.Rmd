@@ -126,7 +126,7 @@ msummary(m, stars = TRUE, gof_omit = 'AIC|BIC|Lik|F|Pseudo|Adj')
 
 - We can use what we know about binary variables and interaction terms to get our DID
 
-$$Y_{it} = \beta_0 + \beta_1Post_t + \beta_2Treated_i + \beta_3Post_tTreated_i + \varepsilon_{it}$$
+$$Y_{it} = \beta_0 + \beta_1Post_t + \beta_2Treated_i + \beta_3Post_t \cdot Treated_i + \varepsilon_{it}$$
 where $Post_t$ is a binary variable for being in the post-treatment period, and $Treated_t$ is a binary variable for being in the treated group
 
 ---
@@ -164,7 +164,7 @@ DID
 
 - How can we interpret this using what we know?
 
-$$Y_{it} = \beta_0 + \beta_1Post_t + \beta_2Treated_i + \beta_3Post_tTreated_i + \varepsilon_{it}$$
+$$Y_{it} = \beta_0 + \beta_1Post_t + \beta_2Treated_i + \beta_3Post_t \cdot Treated_i + \varepsilon_{it}$$
 
 - $\beta_0$ is the prediction when $Treated_i = 0$ and $Post_t = 0$ $\rightarrow$ the Untreated Before mean!
 - $\beta_1$ is the *difference between* Before and After for $Treated_i = 0$ $\rightarrow$ Untreated (After - Before)
@@ -489,7 +489,8 @@ set.seed(10600)
 - Many causal inference designs can be tested using *placebo tests*
 - Placebo tests pretend there's a treatment where there isn't one, and looks for an effect
 - If it finds one, that indicates there's something wrong with the design, finding an effect when we know for a fact there isn't one
-- In the case of DID, we could (rare) drop the treated groups and pretend some untreated groups are treated, look for effects, or (common) drop the post-treatment data, pretend treatment happens at a different time, and check for an effect
+- In the case of DID, we could drop the treated groups and pretend some untreated groups are treated, look for effects (rare method), or drop the post-treatment data, pretend treatment happens at a different time, and check for an effect (common method)
+- We can also _permutate_ the treatment assignment variable randomly across subjects
 
 ---
 
