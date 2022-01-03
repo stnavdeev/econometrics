@@ -1,5 +1,5 @@
 ---
-title: "Cencored regression, weak IV, and quantile regression"
+title: "Censored regression, selection model, weak IV, and quantile regression"
 subtitle: "Tutorial 1"
 date: "Stanislav Avdeev"
 output:
@@ -31,6 +31,8 @@ library(jtools)
 library(scales)
 library(Cairo)
 library(fabricatr)
+library(modelsummary)
+library(stargazer)
 theme_metro <- function(x) {
   theme_classic() + 
   theme(panel.background = element_rect(color = '#FAFAFA',fill='#FAFAFA'),
@@ -56,39 +58,40 @@ theme_metro_regtitle <- function(x) {
 
 # Tutorials
 
-* 7 TA sessions
-* 6 TA sessions are about lecture material
-* The last session is primarily about exam and remaining questions about the course material (TBA)
-* Send me any questions you want to discuss before each TA session
-* Use Canvas or send me an email
-* Alternately, leave your questions anonymously here: https://www.menti.com/c6uyd9qan4 (I will update the link each week on Canvas)
+- 7 TA sessions
+  - 6 TA sessions are about lecture material
+  - The last session is primarily about exam and remaining questions about the course material (TBA)
+- Send me **any** questions you want to discuss before each TA session
+  - Use Canvas or send me an email (s.avdeev@tinbergen.nl)
+  - Alternately, leave your questions anonymously here: https://www.menti.com/c6uyd9qan4 (I will update the link each week on Canvas)
 
 ---
 
 # Assignments
 
-* Due date: 11:59pm on Sundays (the first assignment is an exception: 11:59am on Tuesday)
-* Assignments are graded within a week from the deadline
-* Solutions will not be shared so if you want to discuss a specific exercise, let me know before the TA session (you submit your solutions on Sunday, thus, we can discuss any questions on the following TA session on Tuesday)
+- Due date: 11:59pm on Sundays (the first assignment is an exception: 11:59am on Tuesday)
+- Assignments are graded within a week from the deadline
+- Solutions will not be shared so if you want to discuss a specific exercise, let me know before the TA session (you submit your solutions on Sunday, thus, we can discuss any questions on the following TA session on Tuesday)
 
 ---
 
 # Course objective
-* The key objective of the course is **applying** microeconometric techniques rather than **deriving** econometric and statistical properties of estimators.
+* The key objective of the course is **applying** microeconometric techniques rather than **deriving** econometric and statistical properties of estimators
 * In other words, there’s way less of this:
 
 \begin{align*}
-  \text{plim} \hat{\beta}_{OLS} = \beta + \text{plim} (\frac{1}{N}X'X)^{-1} \text{plim} \frac{1}{N} X' \epsilon = \beta + Q^{-1} \times \text{plim} \frac{1}{N} X' \epsilon
+  \text{plim} \hat{\beta}_{OLS} = \beta + \text{plim} (\frac{1}{N}X'X)^{-1} \text{plim} \frac{1}{N} X' \varepsilon = \beta + Q^{-1} \text{plim} \frac{1}{N} X' \varepsilon
 \end{align*}
 
 * And way more of this:
 
-```{r, echo=TRUE, eval=FALSE}
+```{r, echo=TRUE}
 library(fixest)
 
-tb <- tibble(groups = sort(rep(1:10, 600)), time = rep(sort(rep(1:6, 100)), 10)) %>%
-  mutate(Treated = I(groups > 5) * I(time > 3)) %>%
-  mutate(Y = groups + time + Treated*5 + rnorm(6000))
+tb <- tibble(groups = sort(rep(1:10, 600)), 
+             time = rep(sort(rep(1:6, 100)), 10),
+             Treated = I(groups > 5) * I(time > 3),
+             Y = groups + time + Treated * 5 + rnorm(6000))
 m <- feols(Y ~ Treated | groups + time, data = tb)
 ```
 
@@ -96,21 +99,220 @@ If you would like to go deeper into the former, take Advanced Econometrics I and
 
 ---
 
-# Weak instrument problem
+# Censored regression
 
-- Weak instrument problem means that we probably shouldn't be using IV in small samples
-- This also means that it's really important that $cov(X, Z)$ is not small
-- If $Z$ has only a trivial effect on $X$, then it's not *relevant* - even if it's truly exogenous, it does not matter because there's no variation in $X$ we can isolate with it
-- And our small-sample bias will be big
+- Censoring occurs when the value of a variable is limited due to some constraint
+- For example, we tend not to see wages below the federal minimum wage
+- In this case OLS estimates are biased
+- A standard method to account for censoring is to combine a probit with OLS, i.e. tobit-model
+
+---
+
+# Censored regression: simulation
+
+- The clearest way to understand how a certain estimator works is to generate data yourself so you know the true **data generating process** - DGP
+- Let's estimate returns to education: does education increase wages?
+- But suppose that we do not observe wages below a specific threshold (can happen due to privacy concerns, coding, etc.)
+- We need to generate data containing years of education and wages
+
+```{r, echo = TRUE}
+# Alsways set seed so you can replicate your results
+set.seed(7)
+df <- tibble(education = runif(1000, 5, 15),
+             wage_star = 500 + 150*education + rnorm(1000, 0, 100),
+             wage = ifelse(wage_star < 1500, 1500, wage_star))  %>%
+  arrange(desc(wage_star))
+```
+
+---
+
+# Censored regression: simulation
+
+- Let's look at the head and tail of our dataset
+
+```{r, echo = FALSE}
+head(df)
+tail(df)
+```
+
+---
+
+# Censored regression: OLS
+
+Now let's pretend that we do not know the DGP and simply apply OLS
+
+```{r, echo = TRUE}
+ols_model <- lm(wage ~ education, df)
+```
+
+```{r, echo = FALSE}
+msummary(ols_model, stars = TRUE,  gof_omit = '^(?!Num)')
+```
+
+- Using these OLS estimates, we would conclude that "an additional year of education is associated with `r round(ols_model$coefficients[2], 3)` increase in monthly wages"
+
+---
+
+# Censored regression: tobit-model
+
+- But these are biased estimates since we know the true effect is $150$ (remember DGP)
+- Let's try to recover unbiased effects of education on wages by using tobit-model
+- The solution provided by the tobit-model is to
+  - use a probit to account for the censoring 
+  - estimate OLS on the non-censored data
+- Tobit-model estimator is easy to implement with `censReg` package 
+
+---
+
+# Censored regression: tobit-model
+
+Remember that we have left censored wages: wages below $1500$ are coded as $1500$
+
+```{r, echo = TRUE}
+library(censReg)
+tobit_model <- censReg(wage ~ education, data = df, left = 1500)
+```
+
+```{r, echo = FALSE}
+msummary(tobit_model, stars = TRUE,  gof_omit = '^(?!Num)')
+```
+
+We recovered the unbiased estimates of returns to education
+
+---
+
+# Censored regression: graphically
+
+We are going to use a lot of graphs since they provide more intuition of what is happening in the regression models
+
+```{r, echo = FALSE}
+ggplot(df, aes(x = education, y = wage)) + 
+  theme_light() +
+  geom_point(aes(color = 'dark grey')) +
+  geom_abline(color = 'red', intercept = ols_model[["coefficients"]][["(Intercept)"]], slope = ols_model[["coefficients"]][["education"]]) + 
+  geom_abline(color = 'blue', intercept = tobit_model[["estimate"]][["(Intercept)"]], slope = tobit_model[["estimate"]][["education"]]) + 
+  ylim(c(1250, 3000)) +
+  scale_color_manual(name = "", values = c("Observed data" = "dark grey", 
+                                                   "OLS" = "red",
+                                                   "Tobit" = "blue"))
+```
+
+---
+
+# Censored regression: some remarks
+
+- You can specify both left and right censoring using `censReg` function
+- Important assumption of the tobit-model is that the unobserved term is normally distributed (which is the case in our simulated dataset)
+- If the data is missing not because the outcome variable is **above (or below)** some threshold but because individuals in the data have made a **choice** such that we can't observe their outcome variable, we can't use censoring
+- Censoring cannot be applied because the availability of data is influenced by the choice of agents (i.e. selection on unobservables)
+- It is a typical sample selection problem
+
+---
+
+# Sample selection model
+
+- Let us consider the case of studying female’s wages
+- Usually, wages are observed for a fraction of women in the sample, whereas the remaining part of women are observed as unemployed or inactive
+- If we run OLS regression using the observed wages, this would deliver consistent estimations only if working females are a random sample of the population
+- However,theory of labor supply suggests that this may not be the case, since (typically) female labor supply is sensitive to household decisions
+- That is, female workers self-select into employment, and the self-selection is not random
+- This difference may lead us to underestimate the gender wage gap
+
+---
+
+# Sample selection model
+
+- Suppose a female worker decides to work or not $I_i^*$ depending on a set of observed $Z_i$ and unobserved $V_i$ characteristics
+
+\begin{align*}
+  I_i^* = Z_i ' \gamma + V_i
+\end{align*}
+
+- This indicator function (decision to work or not) takes two values
+
+\begin{align*}
+  I_i = \begin{cases} \mbox{} 1 \text{ (working) } \ & \mbox{} \text{ if } I_i^* > 0 \\ \mbox{} 0 \text{ (not working) } & \mbox{} \text{ if } I_i^* \leq 0 \end{cases}
+\end{align*}
+
+- Suppose there is a latent outcome $Y_i^*$, i.e. wages of female workers, which depend on a set of observed $X_i$ and unobserved $U_i$ characteristics
+
+\begin{align*}
+  Y_i^* = X_i ' \beta + U_i
+\end{align*}
+
+- However, we observe wages only for females who decided to work. $Y_i$ are observed wages that equal to
+
+\begin{align*}
+  Y_i = \begin{cases} \mbox{} Y_i^* \ & \mbox{} \text{ if } I_i = 1 \\ \mbox{} \text{missing} & \mbox{} \text{ if } I_i = 0 \end{cases}
+\end{align*}
+
+---
+
+# Sample selection model: simulation
+
+```{r, echo = TRUE}
+library(mvtnorm) # to simulate bivariate normal random variable
+set.seed(7)
+df <- tibble(z = runif(100),
+             x = runif(100),
+             uv = rmvnorm(100, mean = c(0, 0), 
+                  sigma = rbind(c(1, 0.5), c(0.5, 1))),
+             i_star = 4 - 5 * z + uv[, 1],
+             y_star = 6 - 3 * x + uv[, 2],
+             y = ifelse(i_star > 0, y_star, 0))
+head(df)
+```
+
+---
+
+# Sample selection model: simulation
+
+The true effect of $Z$ on $I$ (decision to work) is $-5$ and the true effect $X$ on $Y$ (wages) is $-3$ 
+
+```{r, echo = TRUE}
+selection_equation <- glm(I(y > 0) ~ z, df, family = binomial(link = "probit"))
+wage_equation <- lm(y ~ x, df)
+```
+
+```{r, echo = FALSE}
+msummary(list(selection_equation, wage_equation), stars = TRUE, gof_omit = '^(?!Num)')
+```
+
+- Clearly, the estimates are biased since $cov(U_i, V_i) \neq 0$
+
+---
+
+# Sample selection model: assumptions
+
+To estimate the sample selection model, distributional assumptions on the disturbances terms are made, such as bivariate normality
+
+\begin{align*}
+  \left[\begin{array}{l}
+    U_{i} \\
+    V_{i}
+  \end{array}\right] \sim \mathcal{N}\left(0,\left[\begin{array}{cc}
+    \sigma^{2} & \rho \sigma \\
+    \rho \sigma & 1
+  \end{array}\right]\right)
+\end{align*}
+
+- Note that the variance of the normal distribution is not identified in the probit model so it is set to 1
+- To solve the sample selection problem, one needs to use Heckman selection model (left as an exercise in the first assignment)
+- Heckman estimator is very similar to the Tobit estimator 
+- The difference is that this estimator allows for a set of characteristics that determine whether or not the outcome variable is censored
 
 ---
 
 # Weak instrument problem
 
+- If $Z$ has only a trivial effect on $X$, then it's not *relevant* - even if it's truly exogenous, it does not matter because there's no variation in $X$ we can isolate with it
+- And our small-sample bias will be big
+- Thus, weak instrument problem means that we probably shouldn't be using IV in small samples
+- This also means that it's really important that $cov(X, Z)$ is not small
 - There are some rules of thumb for how strong an instrument must be to be counted as "not weak"
 - A t-statistic above 3, or an F statistic from a joint test of the instruments that is 10 or above
 - These rules of thumb aren't great - selecting a model on the basis of significance naturally biases your results
-- What you really want is to know the *population* effect of $Z$ on $X$ - you want the F-statistic from *that* to be 10+. Of course we don't actually know that.
+- What you really want is to know the *population* effect of $Z$ on $X$ - you want the F-statistic from *that* to be 10+. Of course we don't actually know that
 
 ---
 
@@ -119,17 +321,12 @@ If you would like to go deeper into the former, take Advanced Econometrics I and
 - Let's look at the output of `feols()` using a simulated dataset
 
 ```{r, echo = TRUE}
-library(fabricate)
 set.seed(777)
-
-df <- fabricate(
-  N = 200,
-  Y = rpois(N, lambda = 4),
-  Z = rbinom(N, 1, prob = 0.4),
-  X1 = Z * rbinom(N, 1, prob = 0.8),
-  X2 = rnorm(N),
-  G = sample(letters[1:4], N, replace = TRUE)
-)
+df <- tibble(Y = rpois(200, lambda = 4),
+             Z = rbinom(200, 1, prob = 0.4),
+             X1 = Z * rbinom(200, 1, prob = 0.8),
+             X2 = rnorm(200),
+             G = sample(letters[1:4], 200, replace = TRUE))
 ```
 
 ---
@@ -159,17 +356,18 @@ iv
 - We can do this using `diagnostics = TRUE` in `iv_robust` again
 
 ```{r, echo = TRUE}
-set.seed(1000)
+set.seed(7)
 # Create data where Z1 is valid and Z2 is invalid
-df <- tibble(Z1 = rnorm(1000), Z2 = rnorm(1000)) %>%
-  mutate(X = Z1 + Z2 + rnorm(1000)) %>%
-  # True effect is 1
-  mutate(Y = X + Z2 + rnorm(1000))
+df <- tibble(Z1 = rnorm(1000), Z2 = rnorm(1000),
+             X = Z1 + Z2 + rnorm(1000),
+             # True effect is 1
+             Y = X + Z2 + rnorm(1000))
 
 iv <- feols(Y ~ 1 | X ~ Z1 + Z2, data = df, se = 'hetero')
 fitstat(iv, 'sargan')
 ```
- - That's a small p-value! We can reject that the results are similar for each IV, telling us that one is endogenous (although without seeing the actual data generating process we couldn't guess if it were $Z1$ or $Z2$ )
+
+- That's a small p-value. We can reject that the results are similar for each IV, telling us that one is endogenous (although without seeing the actual data generating process we couldn't guess if it were $Z1$ or $Z2$ )
 
 ---
 
@@ -185,5 +383,129 @@ export_summs(iv1, iv2, statistics = c(N = 'nobs'))
 
 Notice the first model gives an accurate coefficient of 1
 
-    
+---
+
+# Quantile regression
+
+- Consider the very simple OLS version testing this model using the experimental data:
+\begin{align*}
+  Y_i = \alpha + D_i ' \beta + U_i
+\end{align*}
+where $Y_i$ is an outcome variable, $D_i$ is a tretment variable
+- Recall that this will estimate our ATE for the treatment
+- What is the interpretation of this affect?
+  - $E(Y_i (1)) - E(Y_i (0))$, i.e. the expected change in the outcome for a person moving from untreated to treated. That’s a useful metric
+- In other words, it characterizes features of the **mean** of our outcome variable, conditional on covariates
+
+---
+
+# Quantile regression
+
+- What if we care about other things but the mean?
+- Quantile regression also solves the problems with
+  - Skewed variables – no more worrying about logs or outliers in the outcome variable
+  - Censoring – in many datasets, our outcome variables are top-coded or bottom-coded
+- But it has its own issues
+  - it is noisier
+  - it is challenging to interpret in an intuitive way
+- If you have underlying theory that has implications for distribution, quantile regression is the rigth tool for empirical analysis
+
+---
+
+# Quantile regression: simulation
+
+```{r, echo = TRUE}
+set.seed(7)
+df <- tibble(x = seq(0, 100, length.out = 100),
+             # non-constant variance
+             sig = 0.1 + 0.05 * x,
+             y = 6 + 0.1 * x + rnorm(100,mean = 0, sd = sig))
+```
+
+---
+
+# Quantile regression: simulation
+
+Let's simulate the dataset with normal random error with non-constant variance
+
+```{r, echo = FALSE}
+ggplot(df, aes(x, y)) +
+  theme_light() + 
+  geom_point() +
+  geom_smooth(method = "lm")
+```
+
+- We can see the increasing variability: as $X$ gets bigger, $Y$ becomes more variable
+
+---
+
+# Quantile regression: simulation
+
+- The estimated mean conditional on $X$ is still unbiased, but it doesn’t tell us much about the relationship between $X$ and $Y$, especially as $X$ gets larger
+- To perform quantile regression, use the `quantreg` package and specify $\text{tau}$ - the quantile you are interested in
+
+```{r, echo = TRUE}
+library(quantreg)
+qr <- rq(y ~ x, df, tau = 0.9)
+```
+
+```{r, echo = FALSE}
+summary.rq(qr)
+```
+
+- The $X$ coefficient estimate of `r round(qr[["coefficients"]][["x"]], 3)` says "one unit increase in $X$ is associated with `r round(qr[["coefficients"]][["x"]], 3)` increase in the $90$ quantile of $Y$"
+- The "lower bd" and "upper bd" values are confidence intervals calculated using the "rank" method  (to read more about calculating confidence intervals, use `?summary.rq`)
+
+---
+
+# Quantile regression: simulation
+
+```{r, echo = TRUE}
+qr2 <- rq(y ~ x, data = df, tau = seq(.1, .9, by = .1))
+summary.rq(qr2)
+```
+
+- The intercept estimate doesn’t change much but the slopes steadily increase
+
+---
+
+# Quantile regression: simulation
+
+- Let's plot our quantile estimates
+
+```{r, echo = FALSE}
+ggplot(df, aes(x, y)) + 
+  theme_minimal() +
+  geom_point() + 
+  geom_quantile(quantiles = seq(.1, .9, by = .1))
+```
+
+---
+
+# Quantile regression: simulation
+
+```{r, echo = FALSE}
+plot(summary(qr2), parm = "x")
+```
+
+- Each black dot is the slope coefficient for the quantile indicated on the x axis. The red lines are the least squares estimate and its confidence interval
+- You can see how the lower and upper quartiles are well beyond the least squares estimate
+
+---
+
+# Quantile regression: inference
+
+- There are several alternative methods of conducting inference about quantile regression coefficients
+  - rank-inversion confidence intervals: `summary.rq(qr)` 
+  - more conventional standard errors: `summary.rq(qr, se = "nid")`
+  - bootstraped stanard errors: `summary.rq(qr, se = "boot")`
+
+---
+
+# References
+
+- Huntington-Klein, N. The Effect: An Introduction to Research Design and Causality, Chapter 19, https://theeffectbook.net
+- Huntington-Klein, N. Econometrics Course Slides, Week 8, https://github.com/stnavdeev/EconometricsSlides
+- Cunningham, S. Causal Inference: The Mixtape, Chapter 7, https://mixtape.scunning.com/instrumental-variables.html
+- Adams, C. Learning Microeconometrics with R, Chapter 6
   
