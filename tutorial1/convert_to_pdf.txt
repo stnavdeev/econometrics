@@ -1,0 +1,3 @@
+# command to convert html slides to pdf (using package pagedown)
+
+pagedown::chrome_print("tutorial1.html",output="tutorial1.pdf")

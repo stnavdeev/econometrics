@@ -119,7 +119,7 @@ If you would like to go deeper into the former, take Advanced Econometrics I and
 - Let's look at the output of `feols()` using a simulated dataset
 
 ```{r, echo = TRUE}
-library(fabricate)
+library(fabricatr)
 set.seed(777)
 
 df <- fabricate(
