@@ -7,8 +7,6 @@ output:
     self_contained: TRUE
     css: [default, metropolis, metropolis-fonts]
     lib_dir: libs
-    # Run xaringan::summon_remark() for this
-    #chakra: libs/remark-latest.min.js
     nature:
       highlightStyle: github
       highlightLines: true
@@ -17,7 +15,7 @@ output:
 
 ```{r setup, include=FALSE}
 options(htmltools.dir.version = FALSE) 
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.width = 8, fig.height = 6)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, dpi = 200, fig.width = 8, fig.height = 5)
 library(tidyverse)
 library(gganimate)
 library(estimatr)
@@ -26,7 +24,6 @@ library(dagitty)
 library(ggthemes)
 library(directlabels)
 library(ggdag)
-library(fixest)
 library(jtools)
 library(scales)
 library(Cairo)
@@ -110,6 +107,7 @@ $$ Y = \beta_0 + \beta_1TreatedGroup + \beta_2Post + \beta_3TreatedGroup\times P
 # DID as two-way fixed effects
 
 ```{r, echo = TRUE}
+library(fixest)
 set.seed(1500)
 tb <- tibble(groups = sort(rep(1:10,600)), time = rep(sort(rep(1:6,100)),10)) %>%
   # Groups 6-10 are treated, time periods 4-6 are treated

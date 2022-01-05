@@ -1,5 +1,5 @@
 ---
-title: "Potential outcomes framework, RCT and power analysis"
+title: "Potential outcomes model, randomized experiments, and power analysis"
 subtitle: "Tutorial 3"
 date: "Stanislav Avdeev"
 output:
@@ -7,17 +7,15 @@ output:
     self_contained: TRUE
     css: [default, metropolis, metropolis-fonts]
     lib_dir: libs
-    # Run xaringan::summon_remark() for this
-    #chakra: libs/remark-latest.min.js
     nature:
       highlightStyle: github
       highlightLines: true
       countIncrementalSlides: false
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include = FALSE}
 options(htmltools.dir.version = FALSE) 
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.width = 8, fig.height = 6)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, dpi = 200, fig.width = 8, fig.height = 5)
 library(tidyverse)
 library(estimatr)
 library(dagitty)
@@ -50,195 +48,221 @@ theme_metro_regtitle <- function(x) {
 }
 ```
 
-# The fundamental problem of causal inference
+# Goal for today's tutorial
 
-- The main goal we have in doing causal inference is in making *as good a guess as possible* as to what that `Y` *would have been* if `X` had been different
-- That "would have been" is called a *counterfactual* - counter to the fact of what actually happened
-- In doing so, we want to think about two people/firms/countries that are basically *exactly the same* except that one has `X=0` and one has `X=1`
+1. Enumerate tools used to discuss causal questions
+1. Set terminology for causal inference
+1. Understand different treatment effects
+1. Perform power analysis simulations
 
 ---
 
-# Potential outcomes
+# The fundamental problem of CI
 
-- The logic we just went through is the basis of the *potential outcomes model*, which is one way of thinking about causality
-- We can't observe the counterfactual, and must make an estimate of what the *outcome* would *potentially* have been under the counterfactual
-- Figuring out that makes a good counterfactual estimate is a key part of causal inference
+- The main goal we have in doing **causal inference** (CI) is in making as good a guess as possible as to what that $Y$ would have been if $X$ had been different
+- That "would have been" is called a **counterfactual** - counter to the fact of what actually happened
+  - in doing so, we want to think about two people/firms/countries that are basically exactly the same except that one has $X = 0$ and one has $X = 1$
+
+---
+
+# The fundamental problem of CI
+
+- Suppose there are two variables
+  - $Y \in \{0, 1\}$: whether a person is immune to Covid-19
+  - $D \in \{0, 1\}$: whether a person gets a vaccine
+- Our question: does $D$ cause $Y$?
+- **The fundamental problem of causal inference** (Holland 1986) is that for a given individual, we can only observe one world - either they get the vaccine, or they do not
+- What is knowable?
+  - first, we need some notation - begin with the **potential outcomes model** (Neyman-Rubin causal model)
+
+---
+
+# Potential outcomes model
+
+- The logic we just went through is the basis of the potential outcomes model, which is one way of thinking about causality
+  - we can't observe the counterfactual, and must make an estimate of what the **outcome** would **potentially** have been under the counterfactual
+  - figuring out that makes a good counterfactual estimate is a key part of causal inference
+- What is the key assumption to make causal inference?
+  - **SUTVA** - Stable Unit Treatment Variable Assignment, which states that person $i’s$ outcome is only affected by their own treatment
+  - How can we ensure SUTVA is satisfied? Randomized experiments are one of the available tools
 
 ---
 
 # Randomized experiments
 
-- A common way to do causal inference in many fields is an *experiment*
-- If you can *randomly assign* `X`, then you know that the people with `X=0` are, on average, exactly the same as the people with `X=1`
-- When we're working with people/firms/countries, running experiments is often infeasible, impossible, or unethical
-- So we have to think hard about a *model* of what the world looks like
-- So that we can use our model to figure out what the *counterfactual* would be
+- A common way to do causal inference in many fields is an experiment
+  - if you can **randomly assign** $D$, then you know that the people with $D = 0$ are, on average, exactly the same as the people with $D = 1$
+  - then we can easily estimate this model
+$$Y_i = \alpha + \delta D_i + U_i$$
+- However, when we're working with people/firms/countries, running experiments is often infeasible, impossible, or unethical
+- So we have to think hard about a **model** of what the world looks like
+  - so we can use this model to figure out what the counterfactual outcome would be (we will discuss that in the $5^{\text{th}}$ and $6^{\text{th}}$ tutorials)
 
 ---
 
-# DGP
+# Randomized experiments: simulation
 
-- In causal inference, the *model* is our idea of what we think the process is that *generated the data*
-- We have to make some assumptions about what this is
-- We put together what we know about the world with assumptions and end up with our model
-- The model can then tell us what kinds of things could give us wrong results so we can fix them and get the right counterfactual
----
+- Let's simulate a dataset with a randomized treatment
+- Let's say that getting a treatment $D$ causes $Y$ to increase by $1$
+- And let's run a randomized experiment of who actually gets $D$
 
-# DGP: simulation
+```{r, echo = TRUE}
+set.seed(7)
+df <- tibble(D = sample(c(0, 1), 1000, replace=T),
+             Y0 = rnorm(1000),
+             Y1 = Y0 + 1,
+             Y_observed = ifelse(D == 1, Y1, Y0))
+```
 
-- Let's simulate a dataset where we know the DGP
-- Let's say that getting `X` causes `Y` to increase by 1
-- And let's run a randomized experiment of who actually gets X
 
-```{r, echo=TRUE, eval=TRUE}
-df <- data.frame(Y.without.X = rnorm(1000),X=sample(c(0,1),1000,replace=T)) %>%
-  mutate(Y.with.X = Y.without.X + 1) %>%
-  #Now assign who actually gets X
-  mutate(Observed.Y = ifelse(X==1,Y.with.X,Y.without.X))
-#And see what effect our experiment suggests X has on Y
-df %>% group_by(X) %>% summarize(Y = mean(Observed.Y))
+```{r, echo = FALSE}
+head(df)
 ```
 
 ---
 
-# DGP: simulation
+# Randomized experiments: simulation
 
-- Now this time we can't randomize X
+```{r, echo = TRUE}
+# The true effect is 1
+df %>% group_by(D) %>% summarize(Y = mean(Y_observed))
 
-```{r, echo=TRUE, eval=TRUE}
-df <- data.frame(Z = runif(10000)) %>% 
-  mutate(Y.without.X = rnorm(10000) + Z, Y.with.X = Y.without.X + 1) %>%
-  #Now assign who actually gets X
-  mutate(X = Z > .7,Observed.Y = ifelse(X==1,Y.with.X,Y.without.X))
-df %>% 
-  group_by(X) %>% 
-  summarize(Y = mean(Observed.Y))
+random <- lm(Y_observed ~ D, df) # we can also use a simple regression
+```
+
+```{r, echo = FALSE}
+msummary(random, stars = TRUE, gof_omit = '^(?!Num)')
 ```
 
 ---
 
-# DGP: simulation
+# Randomized experiments: simulation
 
-- But if we properly model the process and compare apples to apples
+- Now this time we can't randomize $D$
 
-```{r, echo=TRUE, eval=TRUE}
-df %>% 
-  filter(abs(Z-.7)<.01) %>% 
-  group_by(X) %>% 
-  summarize(Y = mean(Observed.Y))
+```{r, echo = TRUE}
+set.seed(7)
+df <- tibble(Z = runif(1000),
+             D = ifelse(Z > 0.7, 1, 0),
+             Y0 = rnorm(1000) + Z,
+             Y1 = Y0 + 1,
+             Y_observed = ifelse(D == 1, Y1, Y0))
 ```
+
+
+```{r, echo = FALSE}
+head(df)
+```
+---
+
+# Randomized experiments: simulation
+
+```{r, echo = TRUE}
+# The true effect is 1
+df %>% group_by(D) %>% summarize(Y = mean(Y_observed))
+
+not_random <- lm(Y_observed ~ D, df)
+```
+
+```{r, echo = FALSE}
+msummary(not_random, stars = TRUE, gof_omit = '^(?!Num)')
+```
+
+---
+
+# Randomized experiments: simulation
+
+- But if we properly **model** the process and compare apples to apples
+
+```{r, echo = TRUE}
+# The true effect is 1
+not_random_modeled <- lm(Y_observed ~ D, df %>% 
+                           filter(abs(Z - 0.7) < 0.01)) # looks like RDD
+```
+
+```{r, echo = FALSE}
+msummary(not_random_modeled, stars = TRUE, gof_omit = '^(?!Num)')
+```
+
 
 ---
 
 # Identification
 
-- We have "identified" a causal effect if *the estimate that we generate gives us a causal effect*
-- In other words, *when we see the estimate, we can claim that it's isolating just the causal effect*
-- Simply looking at `lm(Y~X)` gives us the causal effect in the randomized-X case. `lm(Y~X)` **identifies** the effect of $X$ on $Y$
-- But `lm(Y~X)` does *not* give us the causal effect in the non-randomized case we did. In that case, `lm(Y~X)` **does not identify** the causal effect, but the apples-to-apples comparison we did *does* identify the effect
-- Causal inference is all about figuring out *what calculation we need to do to identify that effect*
-
----
-
-# Identification
-
-- Identifying effects requires us to understand the **data generating process**
-- And once we understand that DGP, knowing what calculations we need to do to isolate our effect
-- Often these will involve conditional on several covariates
-- Or **isolating the variation we want** in some other way
+- In the first randomized case `lm(Y ~ D, df)` identifies the causal effect of $X$ on $Y$
+  - in other words, when we see the estimate, we can claim that it's isolating just the causal effect
+- In the second non-randomized case `lm(Y ~ D, df)` does not identify the causal effect 
+- In the apples-to-apples comparison we could identify the causal effect (practically by using RDD)
+- Causal inference is all about figuring out what calculation we need to do to identify the effects
+  - but what effects are we identifying?
 
 ---
 
 # Treatment effects
 
-- For any given treatment, there are likely to be *many* treatment effects
-- Different individuals will respond to different degrees (or even directions)
-- This is called *heterogeneous treatment effects*
-- When we identify a treatment effect, what we're *estimating* is some mixture of all those individual treatment effects
-- But what kind of mixture? 
-- What we get depends on *the research design itself* as well as *the estimator we use to perform that design*
-
----
-
-# Individual treatment effects
-
-- While we can't always estimate it directly, the true regression model becomes something like
-
-$$ Y = \alpha + X' \beta_i + U $$
-
-- $\beta_i$ follows its own distribution across individuals (notice subscript $i$)
-- Remember, this is theoretical - we'd still have those individual $\beta_i$s even with one observation per individual and no way to estimate them separately
-
----
-
-# Distribution of the treatment effects
-
-- There are methods that try to give us the whole distribution of effects
-- But often we only get a single effect, $\hat{\beta}$.
-- This $\hat{\beta}$ is some summary statistic of the $\beta_i$ distribution. But *what* summary statistic?
-- Average treatment effect: the mean of $\beta_i$
-- Conditional average treatment effect (CATE): the mean of $\beta_i$ *conditional on some value* (say, "just for men", i.e. conditional on being a man)
-
----
-
-# Conditional average treatment effects
-
-- The ATE among some demographic group
-- The ATE among some specific group (conditional average treatment effect)
-- The ATE just among people who were actually treated (ATET)
-- The ATE just among people who were NOT actually treated (ATUT)
+- For any given treatment, there are likely to be **many treatment effects**
+- Average Treatment Effect
+$$ATE = \mathbb{E}(Y_{1}^* - Y_{0}^*) = \mathbb{E}(Y_{1}^*) - \mathbb{E}(Y_{0}^*)$$
+  - ATE is the effect for the **full** population
+- Average Treatment Effect on the Treated
+$$ATET = \mathbb{E}(Y_{1}^* - Y_{0}^* | D = 1) = \mathbb{E}(Y_{1}^* | D = 1) - \mathbb{E}(Y_{0}^* | D = 1)$$
+  - ATET is the effect for individuals who actually **received** the treatment
+- Heterogeneous Treatment Effect
+$$ATE(X) = \mathbb{E}(Y_{1}^* - Y_{0}^* | X) = \mathbb{E}(Y_{1}^* | X) - \mathbb{E}(Y_{0}^* | X)$$
+  - ATE(X) is the effect that is different for individuals with **different** characteristics
 
 ---
 
 # Treatment effects
 
-- Which average you'd *want* depends on what you'd want to do with it
-- Want to know how effective a treatment *was* when it was applied? Average treatment effect on the treated
-- Want to know how effective a treatment would be if applied to everyone/at random? Average treatment effect
-- Want to know how effective a treatment would be if applied *just a little more broadly?*  Local average treatment effect (next lecture)
+- What we get depends on the research design itself as well as the estimator we use to perform that design
+- Which average you'd want depends on what you'd want to do with it
+  - want to know how effective a treatment would be if applied to **everyone/at random**? ATE
+  - want to know how effective a treatment **was** when it was applied? ATET
+  - want to know how effective a treatment **was** when it was applied for males? ATE(X)
+  - want to know how effective a treatment would be if applied **just a little more broadly?** Local Average Treatment Effect - LATE (next lecture)
+- Different treatment effects aren't wrong but we need to pay attention to which one we're getting, or else we may apply the result incorrectly
+  - a result could end up representing a different group than you're really interested in
 
 ---
 
-# Treatment effects
-
-- Different treatment effect averages aren't *wrong* but we need to pay attention to which one we're getting, or else we may apply the result incorrectly
-- A result could end up representing a different group than you're really interested in
-- There are technical ways of figuring out what average you get, and also intuitive ways
-
----
-
-# Heterogeneous treatment effects: simulation
+# Treatment effects: simulation
 
 - Let's simulate some data and see what different methods give us
 - We'll start with some basic data where the effect is already identified
-- The effect varies according to a normal distribution, which has mean 5 for group A and mean 7 for group B (mean = 6 overall)
-- Random assignment / an experimental setting
 
 ```{r, echo = TRUE}
-set.seed(1000)
-tb <- tibble(group = sample(c('A','B'), 5000, replace = TRUE),
-             W = rnorm(5000, mean = 0, sd = sqrt(8))) %>%
-  mutate(beta1 = case_when(
-    group == 'A' ~ rnorm(5000, mean = 5, sd = 2),
-    group == 'B' ~ rnorm(5000, mean = 7, sd = 2))) %>%
-  mutate(X = rnorm(5000)) %>%
-  mutate(Y = beta1*X + rnorm(5000))
+set.seed(7)
+df <- tibble(group = sample(c('A', 'B'), 1000, replace = TRUE),
+             W = rnorm(1000, mean = 0, sd = sqrt(8)),
+             b = case_when(group == 'A' ~ rnorm(1000, mean = 5, sd = 2),
+                           group == 'B' ~ rnorm(1000, mean = 7, sd = 2)),
+             X = rnorm(1000),
+             Y = b*X + rnorm(1000))
+```
+
+```{r, echo = FALSE}
+head(df)
 ```
 
 ---
 
-# Heterogeneous treatment effects: simulation
+# Treatment effects: simulation
 
-- We're already identified, so let's just regress $Y$ on $X$
+- The true effect for group A is $5$, for B is $7$
 
-```{r, echo = FALSE}
-m <- lm(Y ~ X, data = tb)
-m2 <- lm(Y ~ X, data = tb[tb$group == 'A',])
-m3 <- lm(Y ~ X, data = tb[tb$group == 'B',])
-msummary(list(m, m2, m3), stars = TRUE, gof_omit = 'AIC|BIC|F|Lik|Adj|R2|Num')
+```{r, echo = TRUE}
+m1 <- lm(Y ~ X, data = df)
+m2 <- lm(Y ~ X*group, data = df)
+m3 <- lm(Y ~ X, data = df[df$group == 'A',])
+m4 <- lm(Y ~ X, data = df[df$group == 'B',])
 ```
 
-- We get `r scales::number(coef(m)[2], accuracy = .001)`, pretty close to the true average treatment effect of 6
+```{r, echo = FALSE}
+msummary(list(m1, m2, m3, m4), stars = TRUE, gof_omit = '^(?!Num)', coef_omit = "(Intercept)")
+```
+
+- We get results pretty close to the true effects
 - Note the standard error is nothing like the standard deviation of the treatment effect - those are measuring two very different things
 
 ---
@@ -258,68 +282,73 @@ msummary(list(m, m2, m3), stars = TRUE, gof_omit = 'AIC|BIC|F|Lik|Adj|R2|Num')
 
 # Power analysis
 
-- *Statistical power* - having a large enough sample that we can have a reasonable expectation of finding a result if it's there
 - In experiments, we have some control over our sample size
-- So *before* collecting any data, we need to do a *power analysis* - what sample size do we need to get our standard errors down to a useful level? 
-- Power analysis also applies to observational data/non-experimental data too, it's not specific to experiments
-- We just don't do it as often because we can't control the sample size anyway, and it's easier to get huge samples
-- You still huge samples to reasonably study small effects
-- So don't pursue effects that are likely to be really tiny, or at least tinier than your sample can handle
-- If we ran the underpowered study anyway and *do* get a significant result, it would be more likely to be a false positive than a true positive. That's low power
+  - so **before** collecting any data, we need to do a power analysis - what sample size do we need to get our standard errors down to a useful level? 
+- Power analysis also applies to observational data/non-experimental data
+  - we just don't do it as often because we can't control the sample size anyway, and it's easier to get huge samples
+- You need to have a huge sample to reasonably study small effects
+  - so don't pursue effects that are likely to be really tiny, or at least tinier than your sample can handle
+  - if we ran the underpowered study anyway and **do** get a significant result, it would be more likely to be a false positive than a true positive. That's **low power**
 
 ---
 
 # Power analysis
-- Using X as shorthand for the treatment and Y as shorthand for the outcome, assuming we’re doing a power analysis for the a study of the relationship between X and Y, power analysis balances five things:
-1. size of the effect (coefficient in a regression, a correlation, etc.)
-1. amount of variation in the treatment (the variance of X, say)
-1. amount of other variation in Y (the R2, or the variation from the residual after explaining Y with X, etc.)
-1. power (the standard error of the estimate, statistical power, i.e. the true-positive rate)
-1. sample size
+- Using $D$ as shorthand for the treatment and $Y$ as shorthand for the outcome, assuming we’re doing a power analysis for a study of the relationship between $D$ and $Y$
+- Power analysis balances five things
+  1. size of the effect (coefficient in a regression, a correlation, etc.)
+  1. amount of variation in the treatment (the variance of $D$, say)
+  1. amount of other variation in Y (the $R^2$, or the variation from the residual after explaining $Y$ with $D$, etc.)
+  1. power (the standard error of the estimate, statistical power, i.e. the true-positive rate)
+  1. sample size
 
 ---
 
 # Power analysis: implementation
 
 - In order to do power analysis, you need to be able to fill in the values for four of those five pieces, so that power analysis can tell you the fifth one
-1. Use previous research results about these values
-1. Use standard practice for statistical power. In the past, a goal of 80% statistical power has been standard. These days 90% used a lot more often
+  - use previous research results about these values
+  - requirement of the NGO, municipality, etc.
+  - cost-benefit analysis
+- Use standard practice for statistical power
+  - a goal is to achieve $80\% - 90\%$ statistical power
 - You can use a standard formula to calculate your outcomes
 
 $$\text{MDE} = (t_{1-\alpha/2} - t_{1-q})\sqrt{\frac{1}{p(1-p)}} \sqrt{\frac{\sigma^2}{n}}$$
 
-- Functions for doing power analysis calculations in R: like `power.t.test()` or the **powerMediation** package
-- Simulations
+- Empirically you can do power analysis using
+  - `power.t.test()` in **stats**
+  - Multiple functions in **powerMediation**
+  - Simulations
 
 ---
 
 # Power analysis: simulation
 
 - The idea of a power analysis is:
-1. to have data with certain properties (variance of X, size of the effect, etc.)
-1. to use certain analytic methods (regression, etc.)
-1. to make some claims about the sampling variation of the estimator (statistical power, size of standard errors, etc.)
+  - to have data with certain properties (variance of $X$, size of the effect, etc.)
+  - to use certain analytic methods (regression, etc.)
+  - to make some claims about the sampling variation of the estimator (statistical power, size of standard errors, etc.)
 - That's what simulations allow you to do
 
 ---
 
 # Power analysis: simulation
 
-Save your results to use them afterwards:
+- Let's perform power analysis with simulated datasets
 
 ```{r, echo = TRUE}
 set.seed(777)
+# create vectors to store your estimates
 coef_results <- c()
 sig_results <- c()
-for (i in 1:2000) {
-  # Have to re-create the data EVERY TIME or it will just be the same data over and over
-  tib <- tibble(
-    X = runif(1000, 0, 1)
-  ) %>%
-    mutate(Y = .2*X + rnorm(1000, mean = 0, sd = 3))
+
+for (i in 1:500) {
+  # have to re-create the data every time or it will just be the same data 
+  df <- tibble(D = runif(1000, 0, 1),
+               Y = 0.9*D + rnorm(1000, mean = 0, sd = 3))
   
   # Run the analysis
-  model <- feols(Y ~ X, data = tib, se = 'hetero')
+  model <- feols(Y ~ D, df, se = 'hetero')
   
   # Get the results
   coef_results[i] <- coef(model)[2]
@@ -345,7 +374,7 @@ mean(sig_results)
 
 # Power analysis: simulation
 
-Check the distribution of the effects
+- Check the distribution of the effects. The true effect is $0.8$
 
 ```{r, echo = FALSE}
 results_tibble <- tibble(coef = coef_results, sig = sig_results)
@@ -359,7 +388,7 @@ ggplot(results_tibble, aes(x = coef)) +
 
 # Power analysis: simulation
 
-Check the distribution of the significance levels
+- Check the distribution of the significance levels
 
 ```{r, echo = FALSE}
 ggplot(results_tibble, aes(x = sig)) + 
@@ -373,29 +402,30 @@ ggplot(results_tibble, aes(x = sig)) +
 
 # Power analysis: simulation
 
-- The main goal of power analysis is to calculate the *minimum detectable effect* or *smallest sample size* for a given power level
-
-- How can we do that here? By trying different values of effect size and sample size and seeing what we get
-
-- To do this, we're first going to take everything we've done so far and put it inside a *function* that we can call
+- The two main goals of power analysis is to calculate
+  - **minimum detectable effect**
+  - **smallest sample size** for a given power level
+- How can we do that here? 
+  - by trying different values of effect size and sample size and seeing what we get
+  - to do this, we're first going to take everything we've done so far and put it inside a `function()` that we can call
 
 ---
 
 # Power analysis: simulation
+
+Let's create a function t calculate power analysis with a given effect and sample sizes
 
 ```{r, echo = TRUE}
 my_power_function <- function(effect, sample_size) {
   sig_results <- c()
   
   for (i in 1:500) {
-    # Have to re-create the data EVERY TIME or it will just be the same data over and over
-    tib <- tibble(
-      X = runif(sample_size, 0, 1)
-    ) %>%
-      mutate(Y = effect*X + rnorm(sample_size, mean = 0, sd = 3))
+    # Have to re-create the data EVERY TIME or it will just be the same data
+    df <- tibble(D = runif(sample_size, 0, 1),
+                 Y = effect*D + rnorm(sample_size, mean = 0, sd = 3))
     
     # Run the analysis
-    model <- feols(Y ~ X, data = tib, se = 'hetero')
+    model <- feols(Y ~ D, data = df, se = 'hetero')
     
     # Get the results
     sig_results[i] <- tidy(model)$p.value[2] <= .05
@@ -411,59 +441,61 @@ my_power_function <- function(effect, sample_size) {
 
 # Power analysis: simulation
 
-Now we can just call the function, setting `effect` and `sample_size` to whatever we want, and get the power back! Let's check it with the values we had before and make sure we're in the same range:
+- Now we can just call the function, setting `effect` and `sample_size` to whatever we want, and get the power back
 
 ```{r, echo = TRUE}
-my_power_function(.2, 1000)
+my_power_function(.9, 1000)
 ```
 
-Seems good
+- Seems good
+- If you are running repeated simulations (e.g., for a power calculation), make sure you never use `set.seed()` inside of a `function()` that creates random numbers, or the function will always give you the exact same numbers
 
 ---
 
 # Power analysis: simulation
 
-- Now let's say we really are stuck with a sample size of 1000 and we want to know the minimum detectable effect size we can get a power of .8 with. 
-- To do this, we can just run our function with `sample_size = 1000` and a bunch of different `effect` values until we get back a power above .8
+- Now let's say we really are stuck with a sample size of $1000$ and we want to know the **minimum detectable effect** size we can get a power of $0.8$ with
+- To do this, we can just run our function with `sample_size = 1000` and a bunch of different `effect` values until we get back a power above $0.8$
 
 ```{r, echo = TRUE}
 power_levels <- c()
-effects_to_try <- c(.4, .8, 1.2, 1.6, 2)
+effects_to_try <- c(0.4, 0.8, 1.2, 1.6, 2)
 for (i in 1:5) {
   power_levels[i] <- my_power_function(effects_to_try[i], 1000)
 }
-# Where do we cross 80%?
 power_results <- tibble(effect = effects_to_try,
                         power = power_levels)
-power_results
-ggplot(power_results, 
-       aes(x = effect, y = power)) +
-  geom_line(color = 'red', size = 1.5) + 
-  # add a horizontal line at 90%
-  geom_hline(aes(yintercept = .8), linetype = 'dashed') + 
-  # Prettify!
-  theme_minimal() + 
-  scale_y_continuous(labels = scales::percent) + 
-  labs(x = 'Linear Effect Size', y = 'Power')
+power_results # Where do we cross 80%?
 ```
 
 ---
 
 # Power analysis: simulation
 
-```{r, echo = FALSE}
+```{r, echo = FALSE, fig.width = 8, fig.height = 4}
 ggplot(power_results, 
        aes(x = effect, y = power)) +
   geom_line(color = 'red', size = 1.5) + 
-  # add a horizontal line at 90%
+  # add a horizontal line at 80%
   geom_hline(aes(yintercept = .8), linetype = 'dashed') + 
-  # Prettify!
   theme_minimal() + 
   scale_y_continuous(labels = scales::percent) + 
   labs(x = 'Linear Effect Size', y = 'Power')
 ```
 
-- So it looks like we need an effect somewhere between .8 and 1.2 to have an 80% chance of finding a significant result
-- If we don't think the effect is actually likely to be that large, then we need to figure out something else to do - find a bigger sample, use a more precise estimation method, something! Or else we should probably walk away.
+- So it looks like we need an effect somewhere between $0.8$ and $1.2$ to have an $80\%$ chance of finding a significant result
+- If we don't think the effect is actually likely to be that large, then we need to figure out something else to do - find a bigger sample, use a more precise estimation method
 
+---
+
+# References
+
+Books
+- Huntington-Klein, N. The Effect: An Introduction to Research Design and Causality, [Chapter 10: Treatment Effects](https://theeffectbook.net/ch-TreatmentEffects.html)
+- Cunningham, S. Causal Inference: The Mixtape, [Chapter 4: Potential Outcomes Causal Model](https://mixtape.scunning.com/potential-outcomes.html)
+
+Slides
+- Huntington-Klein, N. Econometrics Course Slides, [Week 8: Experiments](https://github.com/NickCH-K/EconometricsSlides/blob/master/Week_08/Week_08_Experiments.html)
+- Huntington-Klein, N. Causality Inference Course Slides, [Lecture 3: Causality](https://github.com/NickCH-K/CausalitySlides/blob/main/Lecture_03_Causality.html) and [Lecture 18: Treatment Effects](https://github.com/NickCH-K/CausalitySlides/blob/main/Lecture_18_Treatment_Effects.html)
+- Goldsmith-Pinkham P. Applied Empirical Methods Course, [Week 1: Potential Outcomes and Directed Acylic Graphs](https://github.com/paulgp/applied-methods-phd/blob/main/lectures/01_po_dags.pdf)
 

@@ -7,8 +7,6 @@ output:
     self_contained: TRUE
     css: [default, metropolis, metropolis-fonts]
     lib_dir: libs
-    # Run xaringan::summon_remark() for this
-    #chakra: libs/remark-latest.min.js
     nature:
       highlightStyle: github
       highlightLines: true
@@ -16,7 +14,8 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE)
+options(htmltools.dir.version = FALSE) 
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, dpi = 200, fig.width = 8, fig.height = 5)
 library(tidyverse)
 library(dagitty)
 library(ggdag)

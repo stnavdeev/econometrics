@@ -7,8 +7,6 @@ output:
     self_contained: TRUE
     css: [default, metropolis, metropolis-fonts]
     lib_dir: libs
-    # Run xaringan::summon_remark() for this
-    #chakra: libs/remark-latest.min.js
     nature:
       highlightStyle: github
       highlightLines: true
@@ -17,19 +15,24 @@ output:
 
 ```{r setup, include=FALSE}
 options(htmltools.dir.version = FALSE) 
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.width = 8, fig.height = 6)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, dpi = 200, fig.width = 8, fig.height = 5)
 library(tidyverse)
 library(gganimate)
-library(fixest)
+library(estimatr)
 library(magick)
-library(wooldridge)
 library(dagitty)
+library(ggthemes)
+library(directlabels)
 library(ggdag)
 library(jtools)
 library(scales)
 library(Cairo)
+library(modelsummary)
+library(stargazer)
+library(wooldridge)
 library(transformr)
 library(huxtable)
+
 theme_metro <- function(x) {
   theme_classic() + 
   theme(panel.background = element_rect(color = '#FAFAFA',fill='#FAFAFA'),
@@ -52,38 +55,49 @@ theme_metro_regtitle <- function(x) {
 }
 ```
 
-# Panel data
+# Goal for today's tutorial
 
-- Panel data is when you observe the same individual over multiple time periods
-- "Individual" could be a person, a company, a state, a country, etc. There are $N$ individuals in the panel data
-- "Time period" could be a year, a month, a day, etc. There are $T$ time periods in the data
-- We assume that we observe each individual the same number of times, i.e. a *balanced* panel (so we have $N\times T$ observations)
-- You can use these estimators with unbalanced panels too, it just gets a little more complex
+1. Understand the panel structure of the data
+1. Explore differences between pooled OLS, fixed and random effects estimators
+1. Interpret the variation in the data
+1. Make proper inferences using panel data models
 
 ---
 
 # Panel data
 
-- Here's what (a few rows from) a panel data set looks like - a variable for individual (county), a variable for time (year), and then the data
+- Panel data is when you observe the same individual over multiple time periods
+  - "individual" could be a person, a company, a state, a country, etc. There are $N$ individuals in the panel data
+  - "time period" could be a year, a month, a day, etc. There are $T$ time periods in the data
+- We assume that we observe each individual the same number of times, i.e. a *balanced* panel (so we have $N\times T$ observations)
+  - you can use these estimators with unbalanced panels too, it just gets a little more complex
+
+---
+
+# Panel data
+
+- Let's use a dataset from `wooldridge` package on crime data 
+  - you can use a lot of datasets from different packages, such as `wooldridge` which contains datasets from "Introductory Econometrics: A Modern Approach" by Wooldridge J.M.
+- Here's what a panel data set looks like - a variable for individual (county), a variable for time (year), and then the data
 
 ```{r, dev = 'CairoPNG'}
-data(crime4)
+data(crime4, package = 'wooldridge')
 crime4 %>%
   select(county, year, crmrte, prbarr) %>%
   rename(County = county,
          Year = year,
          CrimeRate = crmrte,
          ProbofArrest = prbarr) %>%
-  slice(1:9) %>%
+  slice(c(1:3, 8:10)) %>%
   knitr::kable() %>%
-  kableExtra::add_footnote('9 rows out of 630. "Prob. of Arrest" is estimated probability of being arrested when you commit a crime', notation = 'none')
+  kableExtra::add_footnote('6 rows out of 630. "Prob. of Arrest" is estimated probability of being arrested when you commit a crime', notation = 'none')
 ```
 
 ---
 
 # Between and within variation
 
-- Let's pick a few counties and graph this out
+Let's pick a few counties and graph this out
 
 ```{r, dev = 'CairoPNG'}
 crime4 %>% 
@@ -108,9 +122,9 @@ crime4 %>%
 
 ---
 
-# Between and within variation
+# Between variation
 
-- If we look at the overall variation by using the pooled OLS estimator, we get this
+If we look at the **between** variation by using the **pooled** OLS estimator, we get this
 
 ```{r, dev = 'CairoPNG'}
 crime4 %>% 
@@ -136,9 +150,9 @@ crime4 %>%
 
 ---
 
-# Between and within variation
+# Between variation
 
-- **Between** variation is what we get if we look at the relationship between the *means of each county*
+**Between** variation looks at the relationship **between the means of each county**
 
 ```{r, dev = 'CairoPNG'}
 crime4 %>% 
@@ -167,9 +181,9 @@ crime4 %>%
 
 ---
 
-# Between and within variation
+# Between variation
 
-- The individual year-to-year variation within county doesn't matter
+The individual year-to-year variation within county doesn't matter
 
 ```{r, dev = 'CairoPNG'}
 crime4 %>% 
@@ -199,12 +213,11 @@ crime4 %>%
 
 ---
 
-# Between and within variation
+# Within variation
 
-- Within variation goes the other way - it treats those orange crosses as their own individualized sets of axes and looks at variation *within* county from year-to-year only!
-- We basically slide the crosses over on top of each other and then analyze *that* data
+**Within** variation goes the other way: it looks at variation **within county from year-to-year**
 
-```{r, echo=FALSE, fig.width=5, fig.height=4.5}
+```{r, echo = FALSE}
 cranim <- crime4 %>% 
   filter(county %in% c(1,3,7, 23),
          prbarr < .5) %>%
@@ -241,56 +254,153 @@ p <- ggplot(cranim, aes(x =  prbarr, y = crmrte, color = factor(county), label =
   theme_metro_regtitle()
 
 animate(p, nframes = 80)
-
 ```
 
 ---
 
 # Between and within variation
 
-- We can clearly see that *between counties* there's a strong positive relationship
-- But if you look *within* a given county, the relationship isn't that strong, and actually seems to be negative
-- Which would make sense - if you think your chances of getting arrested are high, that should be a deterrent to crime
-- We are ignoring all differences between counties and looking only at differences within counties
-- Fixed effects is sometimes also referred to as the “within” estimator
+- We can clearly see that **between counties** there's a strong **positive** relationship
+- But if you look **within** a given county, the relationship isn't that strong, and actually seems to be **negative**
+  - which would make sense - if you think your chances of getting arrested are high, that should be a deterrent to crime
+  - we are ignoring all differences between counties and looking only at differences within counties
+- **Fixed effects** is sometimes also referred to as the **within** estimator
 
 ---
 
 # Panel data model
 
-The $it$ subscript says this variable varies over individual $i$ and time $t$
+- The $it$ subscript says this variable varies over individual $i$ and time $t$
 
-$$Y_{it} = \alpha + X_{it}' \beta + U_{it}$$
+\begin{align*}
+  Y_{it} = \alpha + X_{it}' \beta + U_{it}
+\end{align*}
 
 - What if there are individual-level components in the error term causing omitted variable bias? 
-- $X_{it}$ might be related to the variable which is not in the model and thus in the error term
-- Regular omitted variable bias. If we don't adjust for the individual effect, we get a biased $\hat{\beta}$ 
+  - $X_{it}$ might be related to the variable which is not in the model and thus in the error term
 - So we really have this then:
 
-$$Y_{it} = \alpha + X_{it}' \beta + \eta_i + U_{it}$$
+\begin{align*}
+  Y_{it} = \alpha + X_{it}' \beta + \eta_i + U_{it}
+\end{align*}
+
+- If you think $X_{it}$ $\eta_i$ are **not** correlated (based on theory, previous research), you can use both FE and RE estimators
+- If you think $X_{it}$ $\eta_i$ are correlated (based on theory, previous research), use FE estimator
+
 ---
 
-# Fixed effects: estimation
+# Panel data model: simulation
 
-- To estimate fixed effects model, we need to remove between variation so that all that's left is within variation
-- There are two main ways: *de-meaning* and *binary variables* (they give the same result, for balanced panels anyway)
-- Let's do de-meaning first, since it's most closely and obviously related to the "removing between variation" explanation we've been going for
-- The process here is simple
+- Let's simulate a panel dataset
 
-1. For each variable $X_{it}$, $Y_{it}$, etc., get the mean value of that variable for each individual $\bar{X}_i, \bar{Y}_i$
-2. Subtract out that mean to get residuals $(X_{it} - \bar{X}_i), (Y_{it} - \bar{Y}_i)$
-3. Work with those residuals
+```{r, echo = TRUE}
+set.seed(7)
+df <- tibble(id = sort(rep(1:600, 10)), 
+             time = rep(1:10, 600),
+             x1 = rnorm(6000),
+             # fixed variable within individual, e.g. gender
+             x2 = ifelse(id %% 2 == 0, 1, 0),
+             y = id + time + 2*x1 + 50*x2 + rnorm(6000))
+```
 
-- That $\alpha$ and $\eta_u$ terms get absorbed
-- The residuals are, by construction, no longer related to the $\alpha_i$, so it no longer goes in the residuals
+```{r, echo = FALSE}
+df %>%
+  slice(c(1:3, 11:13)) %>%
+  knitr::kable()
+```
+
+---
+
+# Panel data model: simulation
+
+```{r, echo = TRUE}
+# The true effect is 2
+library(plm) # package to estimate FE and RE models
+pooled <- plm(y ~ x1 + x2, model = "pooling", df) # or lm(y ~ x1 + x2, df)
+fixed  <- plm(y ~ x1 + x2, model = "within", index = c("id", "time"), df)
+random <- plm(y ~ x1 + x2, model = "random", index = c("id", "time"), df)
+```
+
+```{r, echo = FALSE}
+msummary(list(pooled, fixed, random), stars = TRUE, gof_omit = '^(?!Num)', coef_omit = "(Intercept)")
+```
+
+- Pooled OLS estimates are off as it doesn't take into account the panel structure of data
+- FE and RE estimators provide unbiased estimates
+- FE estimator doesn't produce estimates of $X_2$ as it's not varying **within** individual
+
+---
+
+# Panel data model: simulation
+
+- Let's introduce the correlation between individual effects and individual characteristics
+
+\begin{align*}
+  \text{cov} (X_i, \eta_i) \neq 0
+\end{align*}
+
+```{r, echo = TRUE}
+set.seed(7)
+df <- tibble(id = sort(rep(1:600, 10)), 
+             time = rep(1:10, 600),
+             # add a correlated individual effect in x1
+             x1 = rnorm(6000) + 0.1*id,
+             x2 = ifelse(id %% 2 == 0, 1, 0),
+             y = id + time + 2*x1 + 50*x2 + rnorm(6000))
+```
+
+---
+
+# Panel data model: simulation
+
+```{r, echo = TRUE}
+# The true effect is 2
+pooled_corr <- plm(y ~ x1 + x2, model = "pooling", df) 
+fixed_corr  <- plm(y ~ x1 + x2, model = "within", index = c("id", "time"), df)
+random_corr <- plm(y ~ x1 + x2, model = "random", index = c("id", "time"), df)
+```
+
+```{r, echo = FALSE}
+msummary(list(pooled_corr, fixed_corr, random_corr), stars = TRUE, gof_omit = '^(?!Num)', coef_omit = "(Intercept)")
+```
+
+- Pooled OLS and RE estimates are off since $\text{cov} (X_i, \eta_i) \neq 0$
+- FE still provide unbiased estimates since $\eta_i$ are eliminated
+- How does FE estimator eliminate $\eta_i$?
+
+---
+
+# Estimation: de-meaning approach
+
+- To estimate FE model, we need to remove between variation so that all that's left is within variation
+- There are two main ways
+  - **de-meaning**
+  - **binary variables** 
+- They give the same result (for balanced panels anyway)
+- Let's do de-meaning first, since it's most closely and obviously related to the "removing between variation" explanation
+  - for each variable $X_{it}$, $Y_{it}$, etc., get the mean value of that variable for each individual $\bar{X}_i, \bar{Y}_i$
+  - subtract out that mean to get residuals $(X_{it} - \bar{X}_i), (Y_{it} - \bar{Y}_i)$
+  - work with those residuals
+- $\alpha$ and $\eta_u$ terms get absorbed
+- The residuals are, by construction, no longer related to the $\eta_i$
 
 $$Y_{it} - \bar{Y}_i = (X_{it} - \bar{X}_i)' \beta + (U_{it} - \bar{U_{i}})$$
 
 ---
 
-# De-meaning: empirical application
+# Estimation: LSDV approach
 
-- We can use `group_by` to get means-within-groups and subtract them out
+- De-meaning the data is not the only way to do it
+  - and sometimes it can make the standard errors wonky, since they don't recognize that you've estimated those means
+- You can also use the **least squares dummy variable** - LSDV (another word for "binary variable") method
+  - we just treat "individual" like the categorical variable it is and add it as a control
+
+---
+
+# Estimation: empirical example
+
+- Let's get back to the crime dataset
+- To demean the data, we can use `group_by` to get means-within-groups and subtract them out
 
 ```{r, echo = TRUE}
 data(crime4, package = 'wooldridge')
@@ -307,71 +417,36 @@ crime4 <- crime4 %>%
 
 ---
 
-# De-meaning: empirical application
+# Estimation: empirical example
+
+- To use least squares dummy variable, we only need to add FE as categorical variables
 
 ```{r, echo = TRUE}
-orig_data <- lm(crmrte ~ prbarr, data = crime4)
+pooling <- lm(crmrte ~ prbarr, data = crime4)
+lsdv    <- lm(crmrte ~ prbarr + factor(county), data = crime4)
 de_mean <- lm(demeaned_crime ~ demeaned_prob, data = crime4)
-export_summs(orig_data, de_mean)
+```
+
+```{r, echo = FALSE}
+msummary(list(pooling, lsdv, de_mean), stars = TRUE, gof_omit = '^(?!Num)', coef_map = c("prbarr", "demeaned_prob"))
 ```
 
 ---
 
-# De-meaning approach: interpreting a within relationship
+# Interpreting a within relationship
 
-- How can we interpret that slope of `-0.03`?
-- This is all *within variation* so our interpretation must be *within-county*
-- If we think we've causally identified it, it means that "raising the arrest probability by 1 percentage point in a county reduces the number of crimes per person in that county by .0003".
-- We're basically "controlling for county"
-- So your interpretation should think of it in that way - *holding county constant* i.e. *comparing two observations with the same value of county* i.e. *comparing a county to itself at a different point in time*
-
----
-
-# Least squares dummy variable (LSDV) approach
-
-- De-meaning the data is not the only way to do it
-- And sometimes it can make the standard errors wonky, since they don't recognize that you've estimated those means
-- You can also use the least squares dummy variable (another word for "binary variable") method
-- We just treat "individual" like the categorical variable it is and add it as a control
-
----
-
-# LSDV approach: empirical application
-
-```{r, echo = TRUE}
-lsdv <- lm(crmrte ~ prbarr + factor(county), data = crime4)
-export_summs(orig_data, de_mean, lsdv, coefs = c('prbarr', 'demeaned_prob'))
-```
-
----
-
-# LSDV approach: interpretation
-
-- The result is the same, as it should be
-- Except for that $R^2$ - why is it so much higher for LSDV?
-- Because de-meaning takes out the part explained by the fixed effects ( $\alpha_i$ ) *before* running the regression, while LSDV does it *in* the regression
-- So the .94 is the portion of `crmrte` explained by `prbarr` *and* `county`, whereas the .21 is the "within - $R^2$ " - the portion of *the within variation* that's explained by `prbarr`
-- Neither is wrong (and the .94 isn't "better"), they're just measuring different things
-
----
-
-# LSDV approach: interpretation
-
+- How can we interpret that slope of `r round(lsdv[["coefficients"]][["prbarr"]], 3)`?
+  - this is all **within variation** so our interpretation must be **within county**
+  - if we think we've causally identified it, "raising the arrest probability by $1$ percentage point in a county reduces the number of crimes per person in that county by $0.0003$"
+  - we're basically **controlling for county**, i.e. comparing a county to itself at a different point in time
 - A benefit of the LSDV approach is that it calculates the fixed effects $\alpha_i$ for you
-- We left those out of the table with the `coefs` argument of `export_summs` (we rarely want them) but here they are:
-
-```{r}
-lsdv
-```
-
-- Interpretation is exactly the same as with a categorical variable - we have an omitted county, and these show the difference relative to that omitted county
+  - interpretation is exactly the same as with a categorical variable - we have an omitted category (one county), and these show the difference relative to that omitted county
+  - this also makes clear another element of what's happening. Just like with a categorical variable, the line is moving *up and down* to meet the counties
+  - graphically, de-meaning moves all the points together in the middle to draw a line, while LSDV moves the line up and down to meet the points
 
 ---
 
-# LSDV approach: interpretation
-
-- This also makes clear another element of what's happening. Just like with a categorical variable, the line is moving *up and down* to meet the counties
-- Graphically, de-meaning moves all the points together in the middle to draw a line, while LSDV moves the line up and down to meet the points
+# Interpreting a within relationship
 
 ```{r, dev = 'CairoPNG'}
 crime4 %>%
@@ -397,64 +472,86 @@ crime4 %>%
 
 ---
 
-# LSDV approach: interpretation
+# Panel data: estimation
 
-- LSDV is computationally expensive
-- If there are a lot of individuals, or big data, or if you have many sets of fixed effects, it can be very slow
-- Most packages implementing fixed-effects commands use de-meaning, but then adjust the standard errors properly
-- They also leave the fixed effects coefficients off the regression table by default
+- Applied researchers rarely do either of these, and rather will use a command specifically designed for the FE estimator
+  - `feols` in **fixest**
+  - `felm` in **lfe**
+  - `plm` in **plm**
+  - `lm_robust` in **estimatr**
+- `feols` in **fixest** seems to be a better choice
+   - it does all sorts of other neat stuff like fixed effects in nonlinear models like logit, regression tables, joint-test functions, and so on 
+  - it’s very fast, and can be easily adjusted to do fixed effects with other regression methods like logit, or combined with instrumental variables
+  - it clusters the standard errors by the first fixed effect by default
 
 ---
 
 # Panel data: estimation
 
-- Applied researchers rarely do either of these, and rather will use a command specifically designed for fixed effects
-- In R, there are three big ones: `feols` in **fixest**, `felm` in **lfe**, `plm` in **plm**, or or `lm_robust` in **estimatr**
-- `feols` seems to be a better choice. 
-- **fixest** does all sorts of other neat stuff like fixed effects in nonlinear models like logit, regression tables, joint-test functions, and on and on
-- It’s very fast, and can be easily adjusted to do FE with other regression methods like logit, or combined with instrumental variables
-- It clusters the standard errors by the first fixed effect by default, which we usually want
-
----
-
-# Panel data: estimation
+Let's see at the output of `feols`
 
 ```{r, echo = TRUE}
-pro <- feols(crmrte ~ prbarr | county, data = crime4)
-export_summs(de_mean, pro, statistics = c(N = 'nobs', R2 = 'r.squared'))
+library(fixest)
+fe_plm <- plm(crmrte ~ prbarr, model = "within", index = "county", crime4)
+fe_feols <- feols(crmrte ~ prbarr | county, crime4)
+```
+
+```{r, echo = FALSE}
+msummary(list(fe_plm, fe_feols), stars = TRUE, gof_omit = '^(?!Num|Std)')
 ```
 
 ---
 
-# Limits to fixed effects
+# Fixed effects: limitations
 
-- Remember we are isolating within variation
-- If an individual has no within variation, say their treatment never changes, they basically get washed out entirely!
-- A fixed-effects regression wouldn’t represent them. And can’t use FE to study things that are fixed over time
-- And in general if there’s not a lot of within variation, FE is going to be very noisy. Make sure there’s variation to study!
+1. Fixed effects don't control for anything that has **within** variation
+1. They control away everything that's **between** only, so we can't see the effect of anything that's between only (effect of geography on crime rate? nope)
+1. Anything with only a **little within** variation will have most of its variation washed out too (effect of population density on crime rate? probably not)
+1. If there’s not a lot of within variation, fixed effects are going to be very noisy. Make sure there’s variation to study
+1. The estimate pays the most attention to individuals with *lots of variation in treatment*
 
----
-
-# Limits to fixed effects
-
-1. They don't control for anything that has within variation
-2. They control away *everything* that's between-only, so we can't see the effect of anything that's between-only
-3. Anything with only a *little* within variation will have most of its variation washed out too
-4. The estimate pays the most attention to individuals with *lots of variation in treatment*
-
-- 2 and 3 can be addressed by using "random effects" instead
+- 2 and 3 can be addressed by using the RE estimator instead (although you need to be certain that $\text{cov} (X_i, \eta_i = 0)$
+  - How can you check that?
 
 ---
 
-# Inference
+# Fixed or random effects?
+
+- To decide between FE or RE estimators you can run the **Hausman test** where the null hypothesis is that the preferred model is the RE estimator vs. the alternative - the FE estimator
+- It basically tests whether the errors are correlated with the regressors, the null hypothesis is they are not
+  - under $H_0$: if $\text{cov} (X_i, \eta_i = 0)$ both RE and FE estimators are consistent, but the RE estimator is more efficient
+  - under $H_1$: if $\text{cov} (X_i, \eta_i \neq 0)$ only FE estimator is consistent
+
+---
+
+# Fixed or random effects?
+
+- Let's apply it to two simulated datasets with and without correlated individual effects
+
+```{r, echo = TRUE}
+phtest(fixed, random)
+phtest(fixed_corr, random_corr)
+```
+
+- As expected, we should use the RE estimator in the first model, and the FE estimator in the second model
+
+---
+
+# Panel data: inference
 - It’s common to cluster standard errors at the level of the fixed effects, since it seems likely that errors would be correlated over time (autocorrelated errors)
+  - it is a default function in `feols` in **fixest**
 - It’s possible to have more than one set of fixed effects
-- But interpretation gets tricky - think through what variation in X you’re looking at at that point
+  - but interpretation gets tricky - think through what variation in $X$ you’re looking at (we will discuss that in the $5^{\text{th}}$ tutorial on difference-in-differences design)
 
 ---
 
 # References
 
-* Slides
-    
+Books
+- Huntington-Klein, N. The Effect: An Introduction to Research Design and Causality, [Chapter 16: Fixed Effects](https://theeffectbook.net/ch-FixedEffects.html)
+- Cunningham, S. Causal Inference: The Mixtape, [Chapter 7: Panel Data](https://mixtape.scunning.com/panel-data.html)
+
+Slides
+- Huntington-Klein, N. Econometrics Course Slides, [Week 6: Within Variation and Fixed Effects](https://github.com/NickCH-K/EconometricsSlides/blob/master/Week_06/Week_06_1_Within_Variation_and_Fixed_Effects.html)
+- Huntington-Klein, N. Causality Inference Course Slides, [Lecture 8: Fixed Effects](https://github.com/NickCH-K/CausalitySlides/blob/main/Lecture_08_Fixed_Effects.html)
   
