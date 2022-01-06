@@ -55,10 +55,10 @@ theme_metro_regtitle <- function(x) {
 
 - 7 TA sessions
   - 6 TA sessions are about lecture material
-  - The last session is primarily about exam and remaining questions about the course material (TBA)
+  - the last session is primarily about exam and remaining questions about the course material (TBA)
 - Send me **any** questions you want to discuss before each TA session
-  - Use Canvas or send me an email (s.avdeev@tinbergen.nl)
-  - Alternately, leave your questions anonymously here: https://onlinequestions.org (enter the event code 18631)
+  - use Canvas or send me an email (s.avdeev@tinbergen.nl)
+  - alternately, leave your questions anonymously here: https://onlinequestions.org (enter the event code 18631)
 
 ---
 
@@ -72,21 +72,19 @@ theme_metro_regtitle <- function(x) {
 
 # Course objective
 - The key objective of the course is **applying** microeconometric techniques rather than **deriving** econometric and statistical properties of estimators
-- In other words, there’s way less of this:
+- In other words, there’s way less of this
 
-\begin{align*}
-  \text{plim} \hat{\beta}_{OLS} = \beta + \text{plim} (\frac{1}{N}X'X)^{-1} \text{plim} \frac{1}{N} X' \varepsilon = \beta + Q^{-1} \text{plim} \frac{1}{N} X' \varepsilon
-\end{align*}
+$$\text{plim} \hat{\beta}_{OLS} = \beta + \text{plim} (\frac{1}{N}X'X)^{-1} \text{plim} \frac{1}{N} X' \varepsilon = \beta + Q^{-1} \text{plim} \frac{1}{N} X' \varepsilon$$
 
-- And way more of this:
+- And way more of this
 
-```{r, echo=TRUE}
+```{r, echo=TRUE, warning = FALSE}
 library(fixest)
 
 df <- tibble(groups = sort(rep(1:10, 600)), 
              time = rep(sort(rep(1:6, 100)), 10),
              Treated = I(groups > 5) * I(time > 3),
-             Y = groups + time + Treated * 5 + rnorm(6000))
+             Y = groups + time + 5*Treated + rnorm(6000))
 did <- feols(Y ~ Treated | groups + time, data = df)
 ```
 
@@ -107,9 +105,9 @@ did <- feols(Y ~ Treated | groups + time, data = df)
 # Censored regression
 
 - Censoring occurs when the value of a variable is limited due to some constraint
-- For example, we tend not to see some values of self declared earnings with discrete categories (if earn **at least** $3500$ euro per month, write $3500$)
+  - for example, we tend not to see some values of self declared earnings with discrete categories (if you earn **at least** $3500$ euro per month, write $3500$)
 - In this case OLS estimates are biased
-- A standard method to account for censoring is to combine a probit model with OLS, i.e. tobit model
+  - a standard method to account for censoring is to combine a probit model with OLS, i.e. **tobit model**
 
 ---
 
@@ -117,8 +115,12 @@ did <- feols(Y ~ Treated | groups + time, data = df)
 
 - The clearest way to understand how a certain estimator works is to generate data yourself so you know the true **data generating process** - DGP
 - Let's estimate returns to education: does education increase wages?
-- But suppose that we do not observe wages below a specific threshold (due to the features of a questionnaire, privacy concerns, coding, etc.)
-- We need to generate data containing years of education and wages
+- Let's assume the following model
+$$Y_i = \alpha + \beta_1 X_i + U_i$$
+where $Y_i$ are monthly wages, $X_i$ are years of education
+- But suppose that we do not observe wages above a specific threshold (due to the features of a questionnaire, privacy concerns, coding, etc.)
+  - how can we estimate the model in this case?
+- First, we need to generate data containing years of education and wages
 
 ---
 
@@ -130,12 +132,13 @@ set.seed(7)
 df <- tibble(education = runif(1000, 5, 15),
              wage_star = 1000 + 200*education + rnorm(1000, 0, 100),
              wage = ifelse(wage_star > 3500, 3500, wage_star))  %>%
-  arrange(desc(wage_star))
+      arrange(wage_star)
 ```
 
 ```{r, echo = FALSE}
-head(df, n = 3)
-tail(df, n = 3)
+df %>%
+  slice(c(1:4, 997:1000)) %>%
+  knitr::kable()
 ```
 
 ---
@@ -153,25 +156,26 @@ msummary(ols_model, stars = TRUE,  gof_omit = '^(?!Num)')
 ```
 
 - Using these OLS estimates, we would wrongly conclude that "an additional year of education is associated with $`r round(ols_model$coefficients[2], 3)`$ increase in monthly wages"
+  - if we think that we **causally** identified the effect we'd say "an additional year of education **cauases** $`r round(ols_model$coefficients[2], 3)`$ increase in monthly wages"
 
 ---
 
-# Censored regression: tobit-model
+# Censored regression: tobit model
 
 - But these are biased estimates since we know the true effect is $200$ (remember DGP)
-- Let's try to recover unbiased effects of education on wages by using tobit-model
-- The solution provided by the tobit-model is to
+- Let's try to recover unbiased effects of education on wages by using a **tobit model**
+- The solution provided by a tobit model is to
   - use a probit model to account for the censoring 
   - estimate OLS on the non-censored data
-- Tobit-model estimator is easy to implement with `censReg` package 
+- Tobit model estimator is easy to implement with `censReg` package 
 
 ---
 
-# Censored regression: tobit-model
+# Censored regression: tobit model
 
-- Remember that we have right censored wages: wages above $3500$ are coded as $3500$
+- Remember that we have right censored data: wages above $3500$ are coded as $3500$
 
-```{r, echo = TRUE}
+```{r, echo = TRUE, warning = FALSE}
 library(censReg)
 tobit_model <- censReg(wage ~ education, data = df, right = 3500)
 ```
@@ -180,7 +184,7 @@ tobit_model <- censReg(wage ~ education, data = df, right = 3500)
 msummary(tobit_model, stars = TRUE,  gof_omit = '^(?!Num)')
 ```
 
-- We recovered the unbiased estimates of returns to education
+- We recovered the **unbiased** estimates of returns to education
 
 ---
 
@@ -204,55 +208,42 @@ ggplot(df, aes(x = education, y = wage)) +
 # Censored regression: some remarks
 
 - You can specify both left and right censoring using `censReg` function
-- Important assumption of the tobit-model is that the unobserved term is normally distributed (which is the case in our simulated dataset)
-- If the data is missing not because the outcome variable is **above (or below)** some threshold but because individuals in the data have made a **choice** such that we can't observe their outcome variable, we can't use censoring
-- Censoring cannot be applied because the availability of data is influenced by the choice of agents (i.e. selection on unobservables)
-- It is a typical sample selection problem
+- Important assumption of a tobit model is that the unobserved term is normally distributed (which is the case in our simulated dataset)
+- What if the data is missing not because the outcome variable is **above (or below)** some threshold but because individuals in the data have made a **choice** such that we can't observe their outcome variable?
+- In this case censoring cannot be applied because the availability of data is **influenced** by the choice of agents
+  - it is called **selection on unobservables**
+  - it is a typical **sample selection problem**
 
 ---
 
 # Sample selection model
 
 - Let us consider the case of studying female’s wages
-- Usually, wages are observed for a fraction of women in the sample, whereas the remaining part of women are observed as unemployed or inactive
-- If we run OLS regression using the observed wages, this would deliver consistent estimations only if working females are a random sample of the population
+  - usually, wages are observed for a fraction of women in the sample, whereas the remaining part of women are observed as unemployed or inactive
+  - if we run an OLS regression using the observed wages, this would deliver consistent estimations only if working females are a **random sample** of the population
 - However, theory of labor supply suggests that this may not be the case, since (typically) female labor supply is sensitive to household decisions
-- That is, female workers self-select into employment, and the self-selection is not random
-- This difference may lead us to underestimate the gender wage gap
+  - that is, female workers **self-select** into employment, and the self-selection is not random
+  - this difference may lead us to underestimate the gender wage gap
 
 ---
 
 # Sample selection model
 
 - Suppose a female worker decides to work or not based on a latent variable $I_i^*$ (say, utility derived from working), which depends on a set of observed $Z_i$ and unobserved $V_i$ characteristics
-
-\begin{align*}
-  I_i^* = Z_i ' \gamma + V_i
-\end{align*}
-
+$$I_i^* = Z_i ' \gamma + V_i$$
 - The indicator function (decision to work or not), based on $I_i^*$, takes two values
-
-\begin{align*}
-  I_i = \begin{cases} \mbox{} 1 \text{ (working) } \ & \mbox{} \text{ if } I_i^* > 0 \\ \mbox{} 0 \text{ (not working) } & \mbox{} \text{ if } I_i^* \leq 0 \end{cases}
-\end{align*}
-
+$$I_i = \begin{cases} \mbox{} 1 \text{ (working) } \ & \mbox{} \text{ if } I_i^* > 0 \\ \mbox{} 0 \text{ (not working) } & \mbox{} \text{ if } I_i^* \leq 0 \end{cases}$$
 - Suppose there is a latent outcome $Y_i^*$, i.e. wages of female workers, which depend on a set of observed $X_i$ and unobserved $U_i$ characteristics
-
-\begin{align*}
-  Y_i^* = X_i ' \beta + U_i
-\end{align*}
-
-- However, we observe wages only for females who decide to work. $Y_i$ are observed wages that equal to
-
-\begin{align*}
-  Y_i = \begin{cases} \mbox{} Y_i^* \ & \mbox{} \text{ if } I_i = 1 \\ \mbox{} \text{missing} & \mbox{} \text{ if } I_i = 0 \end{cases}
-\end{align*}
+$$Y_i^* = X_i ' \beta + U_i$$
+- However, we observe wages only for females who decide to work: $Y_i$ are observed wages
+$$Y_i = \begin{cases} \mbox{} Y_i^* \ & \mbox{} \text{ if } I_i = 1 \\ \mbox{} \text{missing} & \mbox{} \text{ if } I_i = 0 \end{cases}$$
 
 ---
 
 # Sample selection model: assumptions
 
-- To estimate the sample selection model, distributional assumptions on the disturbances terms are made, such as bivariate normality
+- As always we need to have some assumptions, for example, in an OLS regression we usually assume $U_i \sim \mathcal{N} (0, \sigma^2)$)
+- To estimate the sample selection model, we make an assumption that disturbances terms are bivariate normal
 
 \begin{align*}
   \left[\begin{array}{l}
@@ -278,11 +269,14 @@ set.seed(7)
 df <- tibble(z = runif(1000),
              x = runif(1000),
              uv = rmvnorm(1000, mean = c(0, 0), 
-                  sigma = rbind(c(1, 0.7), c(0.7, 1))),
+                  sigma = rbind(c(2, 0.7), 
+                                c(0.7, 1))),
              i_star = 4 - 5 * z + uv[, 1],
-             y_star = 6 - 3 * x + uv[, 2],
-             # this is our selection mechanism
-             y = ifelse(i_star > 0, y_star, 0))
+             y_star = 6 - 3 * x + uv[, 2], 
+             y = ifelse(i_star > 0, y_star, 0)) # this is a selection mechanism
+```
+
+```{r, echo = FALSE}
 head(df)
 ```
 
@@ -308,8 +302,8 @@ msummary(list(selection_equation, wage_equation), stars = TRUE, gof_omit = '^(?!
 # Sample selection model: Heckman
 
 - To solve the sample selection problem, one needs to use the **Heckman selection model** (left as an exercise in the $1^{\text{st}}$ assignment)
-- Heckman estimator is very similar to the Tobit estimator 
-- The difference is that this estimator allows for a set of characteristics that determine whether or not the outcome variable is censored
+  - the Heckman estimator is very similar to the Tobit estimator 
+  - the difference is that this estimator allows for a set of characteristics that **determine** whether or not the outcome variable is censored
 
 ---
 
@@ -318,19 +312,11 @@ msummary(list(selection_equation, wage_equation), stars = TRUE, gof_omit = '^(?!
 - The basic idea of the IV estimator is to
   - use the instrument to predict treatment
   - use that predicted treatment to predict the outcome
-- We need a separate equation for each of those steps
-  - **First stage**: predict treatment $X_1$ with the instrument $Z$, with a control variable $X_2$
-
-\begin{align*}
-  X_1 = \gamma_0 + \gamma_1Z + \gamma_2X_2 + V
-\end{align*}
-
-  - **Second stage**: use that equation to predict $X_1$, getting $\hat{X_1}$. Then, use those predictions to predict $Y$
-
-\begin{align*}
-  Y = \beta_0 + \beta_1\hat{X_1} + \beta_2X_2 + U
-\end{align*}
-
+- We need a separate equation for each of these steps
+  - **First stage**: predict treatment $X_1$ with the instrument $Z$ and a control variable $X_2$
+$$X_1 = \gamma_0 + \gamma_1Z + \gamma_2X_2 + V$$
+  - **Second stage**: use these predictions to predict $Y$
+$$Y = \beta_0 + \beta_1\hat{X_1} + \beta_2X_2 + U$$
 - Notice that we need to use all exogenous variables in both stages
 
 ---
@@ -338,54 +324,50 @@ msummary(list(selection_equation, wage_equation), stars = TRUE, gof_omit = '^(?!
 # IV: conditions
 
 - For the IV to work, we need two things to hold
-  - **Relevance**: the instrument must be a *strong predictor* of the treatment. It can't be trivial or unimportant
-\begin{align*}
-  \text{cov}(X, Z) \neq 0
-\end{align*}
-  - **Validity**: the instrument must actually be *exogenous* (or at least exogenous after adding controls)
-\begin{align*}
-  \text{cov}(Z, U) = 0
-\end{align*}
+  - **Validity**: the instrument must actually be exogenous (or at least exogenous after adding controls)
+$$\text{cov}(Z, U) = 0$$
+  - **Relevance**: the instrument must be a strong predictor of the treatment. It can't be trivial or unimportant
+$$\text{cov}(X_1, Z) \neq 0$$
 
 ---
 
 # IV: small-sample bias
 
-- IV is actually a *biased* estimator
-- The mean of its sampling distribution is *not* the population parameter
-- It *would be* the population parameter at infinite sample size, but we don't have that
-- In small samples, the bias of IV is
-
-\begin{align*}
-  \frac{\text{cov} (Z, U)}{\text{cov} (X, Z)}
-\end{align*}
-
-- If $Z$ is valid, then in infinite samples $\text{cov} (Z, U) = 0$ and this goes away. But in a non-infinite sample, it will be nonzero by chance, inducing some bias. The smaller the sample, the more likely we are to get a large value by random chance
-- The bias is smaller 
-  - the stronger the relationship between $X$ and $Z$
+- IV is actually a **biased** estimator
+  - the mean of its sampling distribution is not the population parameter
+  - it would be the population parameter at infinite sample size, but we don't have that
+  - in small samples, the **bias of IV** is
+$$\frac{\text{cov} (Z, U)}{\text{cov} (X_1, Z)} = \frac{\text{corr} (Z, U)}{\text{corr} (X_1, Z)} \frac{\sigma_U}{\sigma_{X_1}}$$
+- If $Z$ is valid, then in infinite samples $\text{cov} (Z, U) = 0$ and this goes away
+- But in a non-infinite sample, it will be nonzero by chance, inducing some bias
+- The bias is smaller
+  - the stronger the relationship between $X_1$ and $Z$
   - the smaller the sum of squared errors
-  - the bigger the variation in $X$
-- What happens when $\text{cov}(X, Z)$ is small?
+  - the bigger the variation in $X_2$
+  - the bigger the sample
+- What happens when $\text{corr}(X_1, Z)$ is small?
 
 ---
 
-# IV: weak instrument problem
+# Weak IV
 
 - If $Z$ has only a trivial effect on $X$, then it's not **relevant** (even if it's truly **exogenous**)
-- And our **small-sample bias** will be big
-- Thus, weak instrument problem means that we probably shouldn't be using IV in small samples
-- This also means that it's really important that $\text{cov} (X, Z)$ is not small
-- There are some rules of thumb for how strong an instrument must be to be counted as "not weak"
-- A t-statistic above $3$, or an F statistic from a joint test of the instruments that is $10$ or above
-- These rules of thumb aren't great - selecting a model on the basis of significance naturally biases your results
-- What you really want is to know the **population** effect of $Z$ on $X$ - you want the F-statistic from that to be bigger than $10$. Of course we don't actually know that
+  - our **small-sample bias** will be big (remember the formula on the previous slide)
+- Thus, **weak IV** means that we probably shouldn't be using IV in small samples
+  - this also means that it's really important that $\text{corr} (X_1, Z)$ is not small
+- There are rules of thumb for how strong IV must be to be counted as "not weak"
+  - t-statistic above $3$
+  - F-statistic from a joint test of the instruments that is $10$ or above
+- These rules of thumb aren't great
+  - selecting a model on the basis of significance naturally biases your results
+  - what you really want is to know the **population effect** of $Z$ on $X_1$ - you want the F-statistic from that to be bigger than $10$. Of course we don't actually know that
 
 ---
 
 # Weak IV: estimation
 
 - There are a bunch of ways to do the IV analysis
-  - the classic one is `ivreg` in the `AER` package, 
+  - the classic one is `ivreg` in the `AER` package
 - Other functions are more fully-featured, including robust SEs, clustering, and fixed effects
   - `feols` in `fixest`
   - `felm` in `lfe`
@@ -398,7 +380,7 @@ msummary(list(selection_equation, wage_equation), stars = TRUE, gof_omit = '^(?!
 
 # Weak IV: simulation
 
-- Let's create a dataset with instruments
+- Let's create a dataset with an instrument
 
 ```{r, echo = TRUE}
 library(fixest)
@@ -408,7 +390,11 @@ df <- tibble(z1 = rnorm(1000),
              # x1 is endogenous since it correlates with u1 by construction
              x1 = 0.2*z1 + 4*u1 + rnorm(1000),
              y1 = 3*x1 + 5*u1)
-head(df)
+```
+
+```{r, echo = FALSE}
+head(df, 4) %>%
+  knitr::kable()
 ```
 
 ---
@@ -427,8 +413,8 @@ msummary(list(ols_model, iv_model), stars = TRUE, gof_omit = '^(?!Num)', coef_om
 ```
 
 - $Z_1$ is a pretty effective instrument even if the correlation between $Z_1$ and $X_1$ is small
-  - Check relevance: $\text{cov} (X_1, Z_1) =$  `r round(cor(df$x1, df$z1), 3)`, so it's a weak instrument
-  - Check validity: $\text{cov} (Z_1, U_1) =$ `r round(cor(df$z1, df$u1), 3)`, pretty close to zero
+  - check validity: $\text{corr} (Z_1, U_1) =$ `r round(cor(df$z1, df$u1), 3)`, pretty close to zero
+  - check relevance: $\text{corr} (X_1, Z_1) =$  `r round(cor(df$x1, df$z1), 3)`, so it's a weak instrument
 
 ---
 
@@ -443,10 +429,13 @@ set.seed(7)
 df <- tibble(v = rnorm(1000),
              z2 = -v + rnorm(1000),
              u2 = 0.1*v + rnorm(1000),
-             # all coefficients stay the same
-             x2 = 0.2*z2 + 4*u2 + rnorm(1000),
-             y2 = 3*x2 + 5*u2)
-head(df)
+             x2 = 0.2*z2 + 4*u2 + rnorm(1000), # all coefficients stay the same here
+             y2 = 3*x2 + 5*u2) # and here
+```
+
+```{r, echo = FALSE}
+head(df, 4) %>%
+  knitr::kable()
 ```
 
 ---
@@ -455,18 +444,18 @@ head(df)
 
 ```{r, echo = TRUE}
 # The true effect is 3
-iv_model2 <- feols(y2 ~ 1 | x2 ~ z2, data = df, se = 'hetero')
 ols_model2 <- lm(y2 ~ x2, df)
+iv_model2 <- feols(y2 ~ 1 | x2 ~ z2, data = df, se = 'hetero')
 ```
 
 ```{r, echo = FALSE}
 msummary(list(ols_model2, iv_model2), stars = TRUE, gof_omit = '^(?!Num)', coef_omit = "(Intercept)")
 ```
 
-- In this case we get a better estimate by using the biased OLS estimator than by using IV 
-- Why? Because of the weak instrument problem
-  - Check relevance: $\text{cov} (X_2, Z_2) =$ `r round(cor(df$x2, df$z2), 3)`
-  - Check validity: $\text{cov} (Z_2, U_2) =$ `r round(cor(df$z2, df$u2), 3)`
+- In this case we get a better estimate by using the OLS estimator than by using IV 
+- Why? Because of the weak instrument problem and the bias
+  - check validity: $\text{corr} (Z_2, U_2) =$ `r round(cor(df$z2, df$u2), 3)`
+  - check relevance: $\text{corr} (X_2, Z_2) =$ `r round(cor(df$x2, df$z2), 3)`
 
 ---
 
@@ -482,7 +471,11 @@ df <- tibble(v = rnorm(1000),
              # we only change the coefficient for z2 in the equation for x3
              x3 = 3*z2 + 4*u2 + rnorm(1000),
              y2 = 3*x3 + 5*u2)
-head(df)
+```
+
+```{r, echo = FALSE}
+head(df, 4) %>%
+  knitr::kable()
 ```
 
 ---
@@ -491,8 +484,8 @@ head(df)
 
 ```{r, echo = TRUE}
 # The true effect is 3
-iv_model3 <- feols(y2 ~ 1 | x3 ~ z2, data = df, se = 'hetero')
 ols_model3 <- lm(y2 ~ x3, df)
+iv_model3 <- feols(y2 ~ 1 | x3 ~ z2, data = df, se = 'hetero')
 ```
 
 ```{r, echo = FALSE}
@@ -500,35 +493,40 @@ msummary(list(ols_model3, iv_model3), stars = TRUE, gof_omit = '^(?!Num)', coef_
 ```
 
 - Even though the correlation between $Z$ and $U$ is the same as previously, the strength of the instrument in explaining $X$ wins out and gives us a better estimator than OLS
-  - Check relevance: $\text{cov} (X_3, Z_2) =$ `r round(cor(df$x3, df$z2), 3)`
-  - Check validity: $\text{cov} (Z_2, U_2) =$ `r round(cor(df$z2, df$u2), 3)`
+  - check validity: $\text{corr} (Z_2, U_2) =$ `r round(cor(df$z2, df$u2), 3)`
+  - check relevance: $\text{corr} (X_3, Z_2) =$ `r round(cor(df$x3, df$z2), 3)`
 
 ---
 
 # Weak IV: F-test
 
-- Let's look at the F-test from the output of `feols()` using a simulated dataset
+- Let's look at the F-test from the output of `feols()`
 
-```{r, echo = TRUE}
-thef <- fitstat(iv_model3, 'ivf', verbose = FALSE)$`ivf1::x3`$stat
+```{r, echo = FALSE}
+iv_model3
+```
+
+```{r, echo = FALSE}
+thef <- fitstat(iv_model3, 'ivf')[["ivf1::x3"]][["stat"]]
 ```
 
 - `r scales::number(thef, accuracy = 0.01)` is way above 10
-- Lee, D., et al. (2021) discuss the potentially severe large-sample distortions from using conventional value of the F-test $10$ and they suggest to use as a rule of thumb the minimum value of the F-test $104.7$, which is needed to ensure a test with significance level $0.05$
+- Lee, D., et al. (2021) discuss the potentially severe large-sample distortions from using conventional value of the F-test equal to $10$ and they suggest to use as a rule of thumb the minimum value of the F-test equal to $104.7$, which is needed to ensure a test with a significance level $0.05$
 
 ---
 
 # Weak IV: overidentification test
 
-- "Overidentification" just means we have more identifying conditions (**validity** assumptions) than we actually need. We only need one instrument, but we have two (or more)
-- So we can compare what we get using each instrument individually
+- **Overidentification** just means we have more identifying conditions (**validity assumptions**) than we actually need
+  - we only need one instrument, but we have two (or more)
+  - so we can compare what we get using each instrument individually
 - If we assume that **at least one of them is valid**, and they both produce similar results, then that's evidence that **both** are valid
 
 ---
 
-# Weak IV: simulation
+# Weak IV: overidentification test
 
-- We can do this using `diagnostics = TRUE` in `iv_robust` again
+- We can do this using `fitstat` in `fixest`
 
 ```{r, echo = TRUE}
 set.seed(7)
@@ -542,16 +540,14 @@ iv <- feols(y ~ 1 | x ~ z1 + z2, df, se = 'hetero')
 fitstat(iv, 'sargan')
 ```
 
-- The null hypothesis of the Sargan test is that the covariance between the instrument and the error term is zero
-\begin{align*}
-  \text{cov } (Z, U) = 0
-\end{align*}
+- The null hypothesis of the **Sargan test** is that the covariance between the instruments and the error term is zero
+$$\text{corr} (Z, U) = 0$$
 - Thus, rejecting the null indicates that at least one of the instruments is not valid
 - So we reject the null, indicating that one of the instruments is endogenous (although without seeing the true DGP we couldn't guess if it were $Z_1$ or $Z_2$)
 
 ---
 
-# Weak IV: simulation
+# Weak IV: overidentification test
 
 - The true effect is $2$
 
@@ -568,36 +564,34 @@ msummary(list(iv1, iv2), stars = TRUE, gof_omit = '^(?!Num)')
 
 # Quantile regression
 
-- Consider the very simple OLS version testing this model using the experimental data:
-\begin{align*}
-  Y_i = \alpha + D_i ' \beta + U_i
-\end{align*}
-where $Y_i$ is an outcome variable, $D_i$ is a tretment variable
-- Recall that this will estimate our ATE for the treatment
-- What is the interpretation of this affect?
-  - $E(Y_i (1)) - E(Y_i (0))$, i.e. the expected change in the outcome for a person moving from untreated to treated. That’s a useful metric
-- In other words, it characterizes the **mean** of our outcome variable
+- Consider a very simple OLS
+$$Y_i = \alpha + \beta_1 D_i + U_i$$
+where $Y_i$ is an outcome variable, $D_i$ is a treatment variable
+- What is the interpretation of the effect of $D_i$ on $Y_i$?
+  - it is the expected change in the outcome for a person moving from untreated to treated
+  - in other words, it characterizes the **mean** of our outcome variable
 
 ---
 
 # Quantile regression
 
 - What if we care about other things but the mean?
-  - What are the factors influencing total medical expenditures for people with low-, medium-, and high- expenditures?
-  - What are the effects of a training program on employment opportunities for people with the different number of years of education?
-- Quantile regression also solves the problems with
-  - Skewed variables – no more worrying about logs or outliers in the outcome variable
-  - Censoring – in many datasets, our outcome variables are top-coded or bottom-coded
+  - what are the effects of a subsidized insurance policy on medical expenditures for people with low-, medium-, and high- expenditures?
+  - what are the effects of a training program on employment opportunities for people with different years of education?
+- Quantile regression can handle such questions
+- Quantile regression also solves problems with
+  - skewed variables – no more worrying about logs or outliers in the outcome variable
+  - censoring
 - But it has its own issues
   - it is noisier
   - it is challenging to interpret in an intuitive way
-- If you have underlying theory that has implications for distribution, quantile regression is the rigth tool for empirical analysis
+- If you have underlying theory that has implications for distribution of the effects, the quantile regression is the right tool for empirical analysis
 
 ---
 
 # Quantile regression: simulation
 
-- Let's simulate the dataset with normal random error with non-constant variance
+- Let's simulate a dataset with normal random errors with a non-constant variance
 
 ```{r, echo = TRUE}
 set.seed(7)
@@ -620,11 +614,17 @@ ggplot(df, aes(x, y)) +
   geom_smooth(method = "lm")
 ```
 
+```{r, echo = FALSE}
+ols_qr <- lm(y ~ x, df)
+```
+
 ---
 
 # Quantile regression: simulation
 
-- The estimated mean conditional on $X$ is still unbiased, but it doesn’t tell us much about the relationship between $X$ and $Y$, especially as $X$ gets larger
+- The estimated mean of an OLS regression $`round(`ols_qr[["coefficients"]][["x"]], 3)`$ is still unbiased
+  - but it doesn’t tell us much about the relationship between $X$ and $Y$
+  - especially as $X$ gets larger
 - To perform quantile regression, use the `quantreg` package and specify $\text{tau}$ - a quantile
 
 ```{r, echo = TRUE}
@@ -636,8 +636,8 @@ qr <- rq(y ~ x, df, tau = 0.9)
 summary.rq(qr)
 ```
 
-- The $X$ coefficient estimate of `r round(qr[["coefficients"]][["x"]], 3)` says "one unit increase in $X$ is associated with `r round(qr[["coefficients"]][["x"]], 3)` increase in the $90^{\text{th}}$ quantile of $Y$"
-- The "lower bd" and "upper bd" values are confidence intervals calculated using the "rank" method
+- The $X$ coefficient estimate of $`r round(qr[["coefficients"]][["x"]], 3)`$ says that "one unit increase in $X$ is associated with $`r round(qr[["coefficients"]][["x"]], 3)`$ increase in the $90^{\text{th}}$ quantile of $Y$"
+- The "lower bd" and "upper bd" values are confidence intervals calculated using the rank method
 
 ---
 
@@ -650,7 +650,7 @@ qr2 <- rq(y ~ x, data = df, tau = seq(0.1, 0.9, by = 0.1))
 coef(qr2)
 ```
 
-- The intercept estimate doesn’t change much but the slopes steadily increase
+- The intercept estimates don’t change much but the slopes steadily increase
 
 ---
 
@@ -670,8 +670,8 @@ ggplot(df, aes(x, y)) +
 # Quantile regression: simulation
 
 - Each black dot is the slope coefficient for the quantile indicated on the x axis
-- The red lines are the least squares estimate and its confidence interval
-- Lower and upper quartiles are well beyond the least squares estimate
+- The red lines are the OLS estimate and its confidence interval
+- Lower and upper quantiles are well beyond the OLS estimate
 
 ```{r, echo = FALSE, fig.width = 8, fig.height = 4.5}
 plot(summary(qr2), parm = "x")
@@ -697,7 +697,7 @@ Books
 - Adams, C. Learning Microeconometrics with R, Chapter 6: Estimating Selection Models
 
 Slides
-- Huntington-Klein, N. Econometrics Course Slides, [Week 8: Instrumental Variables](https://github.com/NickCH-K/EconometricsSlides/blob/master/Week_08/Week_08_Instrumental_Variables.html)
+- Huntington-Klein, N. Econometrics Course, [Week 8: Instrumental Variables](https://github.com/NickCH-K/EconometricsSlides/blob/master/Week_08/Week_08_Instrumental_Variables.html)
 - Goldsmith-Pinkham P. Applied Empirical Methods Course, [Week 7: Linear Regression III: Quantile Estimation](https://github.com/paulgp/applied-methods-phd/blob/main/lectures/07_regression_3.pdf)
 
 Articles

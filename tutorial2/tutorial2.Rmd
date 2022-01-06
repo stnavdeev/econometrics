@@ -552,6 +552,6 @@ Books
 - Cunningham, S. Causal Inference: The Mixtape, [Chapter 7: Panel Data](https://mixtape.scunning.com/panel-data.html)
 
 Slides
-- Huntington-Klein, N. Econometrics Course Slides, [Week 6: Within Variation and Fixed Effects](https://github.com/NickCH-K/EconometricsSlides/blob/master/Week_06/Week_06_1_Within_Variation_and_Fixed_Effects.html)
-- Huntington-Klein, N. Causality Inference Course Slides, [Lecture 8: Fixed Effects](https://github.com/NickCH-K/CausalitySlides/blob/main/Lecture_08_Fixed_Effects.html)
+- Huntington-Klein, N. Econometrics Course, [Week 6: Within Variation and Fixed Effects](https://github.com/NickCH-K/EconometricsSlides/blob/master/Week_06/Week_06_1_Within_Variation_and_Fixed_Effects.html)
+- Huntington-Klein, N. Causality Inference Course, [Lecture 8: Fixed Effects](https://github.com/NickCH-K/CausalitySlides/blob/main/Lecture_08_Fixed_Effects.html)
   

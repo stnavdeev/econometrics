@@ -263,7 +263,8 @@ msummary(list(m1, m2, m3, m4), stars = TRUE, gof_omit = '^(?!Num)', coef_omit = 
 ```
 
 - We get results pretty close to the true effects
-- Note the standard error is nothing like the standard deviation of the treatment effect - those are measuring two very different things
+- Note the standard error is nothing like the standard deviation of the treatment effect 
+  - those are measuring two very different things
 
 ---
 
@@ -495,7 +496,7 @@ Books
 - Cunningham, S. Causal Inference: The Mixtape, [Chapter 4: Potential Outcomes Causal Model](https://mixtape.scunning.com/potential-outcomes.html)
 
 Slides
-- Huntington-Klein, N. Econometrics Course Slides, [Week 8: Experiments](https://github.com/NickCH-K/EconometricsSlides/blob/master/Week_08/Week_08_Experiments.html)
-- Huntington-Klein, N. Causality Inference Course Slides, [Lecture 3: Causality](https://github.com/NickCH-K/CausalitySlides/blob/main/Lecture_03_Causality.html) and [Lecture 18: Treatment Effects](https://github.com/NickCH-K/CausalitySlides/blob/main/Lecture_18_Treatment_Effects.html)
+- Huntington-Klein, N. Econometrics Course, [Week 8: Experiments](https://github.com/NickCH-K/EconometricsSlides/blob/master/Week_08/Week_08_Experiments.html)
+- Huntington-Klein, N. Causality Inference Course, [Lecture 3: Causality](https://github.com/NickCH-K/CausalitySlides/blob/main/Lecture_03_Causality.html) and [Lecture 18: Treatment Effects](https://github.com/NickCH-K/CausalitySlides/blob/main/Lecture_18_Treatment_Effects.html)
 - Goldsmith-Pinkham P. Applied Empirical Methods Course, [Week 1: Potential Outcomes and Directed Acylic Graphs](https://github.com/paulgp/applied-methods-phd/blob/main/lectures/01_po_dags.pdf)
 
