@@ -115,7 +115,6 @@ crime4 %>%
   labs(x = 'Probability of Arrest', 
        y = 'Crime Rate',
        caption = 'One outlier eliminated in County 7.') + 
-  #scale_x_continuous(limits = c(.15, 2.5)) + 
   guides(color = FALSE, label = FALSE) + 
   scale_color_manual(values = c('black','blue','red','purple'))
 ```
@@ -142,7 +141,6 @@ crime4 %>%
   labs(x = 'Probability of Arrest', 
        y = 'Crime Rate',
        caption = 'One outlier eliminated in County 7.') + 
-  #scale_x_continuous(limits = c(.15, 2.5)) + 
   guides(color = FALSE, label = FALSE) + 
   scale_color_manual(values = c('black','blue','red','purple')) + 
   geom_smooth(method = 'lm', aes(color = NULL, label = NULL), se = FALSE)
@@ -172,7 +170,6 @@ crime4 %>%
   labs(x = 'Probability of Arrest', 
        y = 'Crime Rate',
        caption = 'One outlier eliminated in County 7.') + 
-  #scale_x_continuous(limits = c(.15, 2.5)) + 
   guides(color = FALSE, label = FALSE) + 
   scale_color_manual(values = c('black','blue','red','purple')) + 
   geom_point(aes(x = mpr, y = mcrm), size = 20, shape = 3, color = 'darkorange') + 
@@ -197,13 +194,10 @@ crime4 %>%
   mcrm = mean(crmrte),
   mpr = mean(prbarr)) %>%
   ggplot(aes(x =  prbarr, y = crmrte, color = factor(county), label = label)) + 
-  #geom_point() + 
-  #geom_text(hjust = -.1, size = 14/.pt) + 
   theme_metro_regtitle() + 
   labs(x = 'Probability of Arrest', 
        y = 'Crime Rate',
        caption = 'One outlier eliminated in County 7.') + 
-  #scale_x_continuous(limits = c(.15, 2.5)) + 
   guides(color = FALSE, label = FALSE) + 
   scale_color_manual(values = c('black','blue','red','purple')) + 
   geom_point(aes(x = mpr, y = mcrm), size = 20, shape = 3, color = 'darkorange') + 
@@ -245,7 +239,6 @@ p <- ggplot(cranim, aes(x =  prbarr, y = crmrte, color = factor(county), label =
   labs(x = 'Probability of Arrest', 
        y = 'Crime Rate',
        caption = 'One outlier eliminated in County 7.') + 
-  #scale_x_continuous(limits = c(.15, 2.5)) + 
   guides(color = FALSE, label = FALSE) + 
   scale_color_manual(values = c('black','blue','red','purple')) + 
   geom_smooth(aes(color = NULL), method = 'lm', se = FALSE)+
@@ -405,7 +398,7 @@ $$Y_{it} - \bar{Y}_i = (X_{it} - \bar{X}_i)' \beta + (U_{it} - \bar{U_{i}})$$
 ```{r, echo = TRUE}
 data(crime4, package = 'wooldridge')
 crime4 <- crime4 %>%
-  # Filter to the data points from our graph
+  # filter to the data points from our graph
   filter(county %in% c(1,3,7, 23),
          prbarr < .5) %>%
   group_by(county) %>%
@@ -437,11 +430,11 @@ msummary(list(pooling, lsdv, de_mean), stars = TRUE, gof_omit = '^(?!Num)', coef
 
 - How can we interpret that slope of `r round(lsdv[["coefficients"]][["prbarr"]], 3)`?
   - this is all **within variation** so our interpretation must be **within county**
-  - if we think we've causally identified it, "raising the arrest probability by $1$ percentage point in a county reduces the number of crimes per person in that county by $0.0003$"
+  - if we think we've **causally** identified it, "raising the arrest probability by $1$ percentage point in a county reduces the number of crimes per person in that county by $0.0003$"
   - we're basically **controlling for county**, i.e. comparing a county to itself at a different point in time
 - A benefit of the LSDV approach is that it calculates the fixed effects $\alpha_i$ for you
   - interpretation is exactly the same as with a categorical variable - we have an omitted category (one county), and these show the difference relative to that omitted county
-  - this also makes clear another element of what's happening. Just like with a categorical variable, the line is moving *up and down* to meet the counties
+  - this also makes clear another element of what's happening. Just like with a categorical variable, the line is moving up and down to meet the counties
   - graphically, de-meaning moves all the points together in the middle to draw a line, while LSDV moves the line up and down to meet the points
 
 ---
@@ -465,7 +458,6 @@ crime4 %>%
   labs(x = 'Probability of Arrest', 
        y = 'Crime Rate',
        caption = 'One outlier eliminated in County 7.') + 
-  #scale_x_continuous(limits = c(.15, 2.5)) + 
   guides(color = FALSE, label = FALSE) + 
   scale_color_manual(values = c('black','blue','red','purple'))
 ```
@@ -475,12 +467,12 @@ crime4 %>%
 # Panel data: estimation
 
 - Applied researchers rarely do either of these, and rather will use a command specifically designed for the FE estimator
-  - `feols` in **fixest**
-  - `felm` in **lfe**
-  - `plm` in **plm**
-  - `lm_robust` in **estimatr**
-- `feols` in **fixest** seems to be a better choice
-   - it does all sorts of other neat stuff like fixed effects in nonlinear models like logit, regression tables, joint-test functions, and so on 
+  - `feols` in `fixest`
+  - `felm` in `lfe`
+  - `plm` in `plm`
+  - `lm_robust` in `estimatr`
+- `feols` in `fixest` seems to be a better choice
+  - it does all sorts of other neat stuff like fixed effects in nonlinear models like logit, regression tables, joint-test functions, and so on 
   - it’s very fast, and can be easily adjusted to do fixed effects with other regression methods like logit, or combined with instrumental variables
   - it clusters the standard errors by the first fixed effect by default
 
@@ -508,7 +500,7 @@ msummary(list(fe_plm, fe_feols), stars = TRUE, gof_omit = '^(?!Num|Std)')
 1. They control away everything that's **between** only, so we can't see the effect of anything that's between only (effect of geography on crime rate? nope)
 1. Anything with only a **little within** variation will have most of its variation washed out too (effect of population density on crime rate? probably not)
 1. If there’s not a lot of within variation, fixed effects are going to be very noisy. Make sure there’s variation to study
-1. The estimate pays the most attention to individuals with *lots of variation in treatment*
+1. The estimate pays the most attention to individuals with **lots of variation in treatment**
 
 - 2 and 3 can be addressed by using the RE estimator instead (although you need to be certain that $\text{cov} (X_i, \eta_i = 0)$
   - How can you check that?
@@ -538,8 +530,8 @@ phtest(fixed_corr, random_corr)
 ---
 
 # Panel data: inference
-- It’s common to cluster standard errors at the level of the fixed effects, since it seems likely that errors would be correlated over time (autocorrelated errors)
-  - it is a default function in `feols` in **fixest**
+- It’s common to cluster standard errors at the level of the fixed effects, since it seems likely that errors would be correlated over time
+  - it is a default function in `feols` in `fixest`
 - It’s possible to have more than one set of fixed effects
   - but interpretation gets tricky - think through what variation in $X$ you’re looking at (we will discuss that in the $5^{\text{th}}$ tutorial on difference-in-differences design)
 

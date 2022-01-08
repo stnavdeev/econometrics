@@ -105,7 +105,7 @@ did <- feols(Y ~ Treated | groups + time, data = df)
 # Censored regression
 
 - Censoring occurs when the value of a variable is limited due to some constraint
-  - for example, we tend not to see some values of self declared earnings with discrete categories (if you earn **at least** $3500$ euro per month, write $3500$)
+  - for example, we tend not to see some values of self-declared earnings with discrete categories (if you earn **at least** $3500$ euro per month, write $3500$)
 - In this case OLS estimates are biased
   - a standard method to account for censoring is to combine a probit model with OLS, i.e. **tobit model**
 
@@ -152,11 +152,11 @@ ols_model <- lm(wage ~ education, df)
 ```
 
 ```{r, echo = FALSE}
-msummary(ols_model, stars = TRUE,  gof_omit = '^(?!Num)')
+msummary(ols_model, stars = TRUE, gof_omit = '^(?!Num)')
 ```
 
 - Using these OLS estimates, we would wrongly conclude that "an additional year of education is associated with $`r round(ols_model$coefficients[2], 3)`$ increase in monthly wages"
-  - if we think that we **causally** identified the effect we'd say "an additional year of education **cauases** $`r round(ols_model$coefficients[2], 3)`$ increase in monthly wages"
+  - if we think that we **causally** identified the effect we'd say "an additional year of education **causes** $`r round(ols_model$coefficients[2], 3)`$ increase in monthly wages"
 
 ---
 
@@ -360,7 +360,7 @@ $$\frac{\text{cov} (Z, U)}{\text{cov} (X_1, Z)} = \frac{\text{corr} (Z, U)}{\tex
   - F-statistic from a joint test of the instruments that is $10$ or above
 - These rules of thumb aren't great
   - selecting a model on the basis of significance naturally biases your results
-  - what you really want is to know the **population effect** of $Z$ on $X_1$ - you want the F-statistic from that to be bigger than $10$. Of course we don't actually know that
+  - what you really want is to know the **population effect** of $Z$ on $X_1$ - you want the F-statistic from that to be bigger than $10$. Of course, we don't actually know that
 
 ---
 
@@ -622,7 +622,7 @@ ols_qr <- lm(y ~ x, df)
 
 # Quantile regression: simulation
 
-- The estimated mean of an OLS regression $`round(`ols_qr[["coefficients"]][["x"]], 3)`$ is still unbiased
+- The estimated mean of an OLS regression $`r round(ols_qr[["coefficients"]][["x"]], 3)`$ is still unbiased
   - but it doesn’t tell us much about the relationship between $X$ and $Y$
   - especially as $X$ gets larger
 - To perform quantile regression, use the `quantreg` package and specify $\text{tau}$ - a quantile
