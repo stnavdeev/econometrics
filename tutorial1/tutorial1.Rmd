@@ -208,7 +208,7 @@ ggplot(df, aes(x = education, y = wage)) +
 # Censored regression: some remarks
 
 - You can specify both left and right censoring using `censReg` function
-- Important assumption of a tobit model is that the unobserved term is normally distributed (which is the case in our simulated dataset)
+- Important assumption of a tobit model is that the unobserved term is normally distributed (which is the case in our simulated data set)
 - What if the data is missing not because the outcome variable is **above (or below)** some threshold but because individuals in the data have made a **choice** such that we can't observe their outcome variable?
 - In this case censoring cannot be applied because the availability of data is **influenced** by the choice of agents
   - it is called **selection on unobservables**
@@ -261,7 +261,7 @@ $$Y_i = \begin{cases} \mbox{} Y_i^* \ & \mbox{} \text{ if } I_i = 1 \\ \mbox{} \
 
 # Sample selection model: simulation
 
-- Let's simulate a dataset with the selection mechanism
+- Let's simulate a data set with the selection mechanism
 
 ```{r, echo = TRUE}
 library(mvtnorm) # to simulate bivariate normal random variable
@@ -380,7 +380,7 @@ $$\frac{\text{cov} (Z, U)}{\text{cov} (X_1, Z)} = \frac{\text{corr} (Z, U)}{\tex
 
 # Weak IV: simulation
 
-- Let's create a dataset with an instrument
+- Let's create a data set with an instrument
 
 ```{r, echo = TRUE}
 library(fixest)
@@ -591,7 +591,7 @@ where $Y_i$ is an outcome variable, $D_i$ is a treatment variable
 
 # Quantile regression: simulation
 
-- Let's simulate a dataset with normal random errors with a non-constant variance
+- Let's simulate a data set with normal random errors with a non-constant variance
 
 ```{r, echo = TRUE}
 set.seed(7)
