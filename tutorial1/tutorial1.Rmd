@@ -116,7 +116,7 @@ did <- feols(Y ~ Treated | groups + time, data = df)
 - The clearest way to understand how a certain estimator works is to generate data yourself so you know the true **data generating process** - DGP
 - Let's estimate returns to education: does education increase wages?
 - Let's assume the following model
-$$Y_i = \alpha + \beta_1 X_i + U_i$$
+$$Y_i = \alpha + X_i' \beta_1 + U_i$$
 where $Y_i$ are monthly wages, $X_i$ are years of education
 - But suppose that we do not observe wages above a specific threshold (due to the features of a questionnaire, privacy concerns, coding, etc.)
   - how can we estimate the model in this case?
@@ -565,7 +565,7 @@ msummary(list(iv1, iv2), stars = TRUE, gof_omit = '^(?!Num)')
 # Quantile regression
 
 - Consider a very simple OLS
-$$Y_i = \alpha + \beta_1 D_i + U_i$$
+$$Y_i = \alpha + D_i' \beta_1 + U_i$$
 where $Y_i$ is an outcome variable, $D_i$ is a treatment variable
 - What is the interpretation of the effect of $D_i$ on $Y_i$?
   - it is the expected change in the outcome for a person moving from untreated to treated

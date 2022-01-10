@@ -296,8 +296,10 @@ df %>%
 # The true effect is 2
 library(plm) # package to estimate FE and RE models (fixest is preferred for FE)
 pooled <- plm(y ~ x1 + x2, model = "pooling", df) # or lm(y ~ x1 + x2, df)
-random <- plm(y ~ x1 + x2, model = "random", index = c("id", "time"), df)
-fixed  <- plm(y ~ x1 + x2, model = "within", index = c("id", "time"), df)
+random <- plm(y ~ x1 + x2, model = "random", index = c("id", "time"), 
+                           effect = "twoways", df)
+fixed  <- plm(y ~ x1 + x2, model = "within", index = c("id", "time"), 
+                           effect = "twoways", df)
 ```
 
 ```{r, echo = FALSE}
@@ -306,7 +308,6 @@ msummary(list(pooled, random, fixed), stars = TRUE, gof_omit = '^(?!Num)', coef_
 
 - Pooled OLS estimates are off as it doesn't take into account the panel structure of data
 - RE and FE estimators provide **unbiased** estimates
-- FE estimator doesn't produce estimates of $X_2$ as it's not varying **within** individual
 
 ---
 
@@ -323,7 +324,7 @@ set.seed(7)
 df <- tibble(id = sort(rep(1:600, 10)), 
              time = rep(1:10, 600),
              x1 = rnorm(6000) + 0.05*id, # add a correlated individual effect
-             x2 = ifelse(id %% 2 == 0, 1, 0),
+             x2 = ifelse(id %% 2 == 0, 0, 1),
              y = id + time + 2*x1 + 50*x2 + rnorm(6000))
 ```
 
@@ -340,8 +341,10 @@ df %>%
 ```{r, echo = TRUE}
 # The true effect is 2
 pooled_corr <- plm(y ~ x1 + x2, model = "pooling", df)
-random_corr <- plm(y ~ x1 + x2, model = "random", index = c("id", "time"), df)
-fixed_corr  <- plm(y ~ x1 + x2, model = "within", index = c("id", "time"), df)
+random_corr <- plm(y ~ x1 + x2, model = "random", index = c("id", "time"), 
+                                effect = "twoways", df)
+fixed_corr  <- plm(y ~ x1 + x2, model = "within", index = c("id", "time"), 
+                                effect = "twoways", df)
 ```
 
 ```{r, echo = FALSE}
@@ -350,7 +353,6 @@ msummary(list(pooled_corr, random_corr, fixed_corr), stars = TRUE, gof_omit = '^
 
 - Pooled OLS and RE estimates are off since $\text{corr} (X_{it}, \eta_i) \neq 0$
 - FE estimator still provides **unbiased** estimates since $\eta_i$ are eliminated
-  - how does the FE estimator eliminate $\eta_i$?
 
 ---
 
@@ -424,13 +426,12 @@ msummary(list(pooling, lsdv, de_mean), stars = TRUE, gof_omit = '^(?!Num)', coef
 
 # Interpreting a within relationship
 
-- How can we interpret that slope of `r round(lsdv[["coefficients"]][["prbarr"]], 3)`?
+- How can we interpret that slope of $`r round(lsdv[["coefficients"]][["prbarr"]], 3)`$?
   - this is all **within variation** so our interpretation must be **within a county**
   - if we think we've **causally** identified it then "raising the arrest probability by $1$ percentage point in a county reduces the number of crimes per person in that county by $-0.0003$"
   - we're basically **controlling for county**, i.e. comparing a county to itself at different points in time
-- A benefit of the LSDV approach is that it calculates the fixed effects for you
-  - interpretation is exactly the same as with a categorical variable - we have an omitted category (one county), and these show the difference relative to that omitted county
-  - graphically, de-meaning moves all the points together in the middle to draw a line, while LSDV moves the line up and down to meet the points
+- It’s possible to have more than one set of fixed effects
+  - but interpretation gets tricky - think through what variation in $X$ you’re looking at
 
 ---
 
@@ -539,15 +540,6 @@ phtest(fixed_corr, random_corr)
 
 ---
 
-# Panel data inference
-- It’s common to cluster s.e. at the level of the fixed effects, since it seems likely that errors would be correlated over time
-  - clustered s.e. calculate the standard errors while allowing some level of correlation between the error terms
-  - `feols` in `fixest` clusters by the first FE by default
-- It’s possible to have more than one set of fixed effects
-  - but interpretation gets tricky - think through what variation in $X$ you’re looking at
-
----
-
 # Panel data inference: simulation
 
 ```{r, echo = TRUE}
@@ -574,7 +566,7 @@ df %>%
 
 ```{r, echo = TRUE}
 # The true effect is 2
-fe_clustered     <- feols(y ~ x1 | id, df) 
+fe_clustered     <- feols(y ~ x1 | id, df) # we use only one set of fixed effects
 fe_not_clustered <- feols(y ~ x1 | id, se = 'standard', df) # make s.e. i.i.d.
 ```
 
@@ -582,6 +574,8 @@ fe_not_clustered <- feols(y ~ x1 | id, se = 'standard', df) # make s.e. i.i.d.
 msummary(list(fe_clustered, fe_not_clustered), stars = TRUE, gof_omit = '^(?!Num|Std)')
 ```
 
+- It’s common to cluster s.e. at the level of the fixed effects, since it seems likely that errors would be correlated over time
+  - `feols` in `fixest` clusters by the first FE by default
 - Not accounting for clustering at the individual level leads to incorrect s.e.
 
 ---
