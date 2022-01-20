@@ -386,7 +386,7 @@ $$Y_{it} - \bar{Y}_i = (X_{it} - \bar{X}_i)' \beta + (U_{it} - \bar{U_{i}})$$
 # Estimation: empirical example
 
 - Let's get back to the crime data set
-- To demean the data, we use `group_by` to get means-within-groups and subtract them
+- To demean the data, we use `group_by()` to get means-within-groups and subtract them
 
 ```{r, echo = TRUE}
 data(crime4, package = 'wooldridge')
@@ -462,11 +462,11 @@ crime4 %>%
 # Panel data: estimation
 
 - Empirical researchers rarely do either of these, and rather will use a command specifically designed for the FE estimator
-  - `feols` in `fixest`
-  - `felm` in `lfe`
-  - `plm` in `plm`
-  - `lm_robust` in `estimatr`
-- `feols` in `fixest` seems to be a better choice
+  - `feols()` in `fixest`
+  - `felm()` in `lfe`
+  - `plm()` in `plm`
+  - `lm_robust()` in `estimatr`
+- `feols()` in `fixest` seems to be a better choice
   - it does all sorts of other neat stuff like fixed effects in nonlinear models like logit, regression tables, joint-test functions, and so on 
   - it’s very fast, and can be easily adjusted to do fixed effects with other regression methods like logit, or combined with IV
   - it clusters the standard errors by the first fixed effect by default
@@ -475,7 +475,7 @@ crime4 %>%
 
 # Panel data: estimation
 
-Let's look at the output of `plm` and `feols`
+Let's look at the output of `plm()` and `feols()`
 
 ```{r, echo = TRUE}
 library(fixest)
@@ -575,7 +575,7 @@ msummary(list(fe_clustered, fe_not_clustered), stars = TRUE, gof_omit = '^(?!Num
 ```
 
 - It’s common to cluster s.e. at the level of the fixed effects, since it seems likely that errors would be correlated over time
-  - `feols` in `fixest` clusters by the first FE by default
+  - `feols()` in `fixest` clusters by the first FE by default
 - Not accounting for clustering at the individual level leads to incorrect s.e.
 
 ---

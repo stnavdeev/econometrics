@@ -207,7 +207,7 @@ ggplot(df, aes(x = education, y = wage)) +
 
 # Censored regression: some remarks
 
-- You can specify both left and right censoring using `censReg` function
+- You can specify both left and right censoring using `censReg()` function
 - Important assumption of a tobit model is that the unobserved term is normally distributed (which is the case in our simulated data set)
 - What if the data is missing not because the outcome variable is **above (or below)** some threshold but because individuals in the data have made a **choice** such that we can't observe their outcome variable?
 - In this case censoring cannot be applied because the availability of data is **influenced** by the choice of agents
@@ -367,14 +367,14 @@ $$\frac{\text{cov} (Z, U)}{\text{cov} (X_1, Z)} = \frac{\text{corr} (Z, U)}{\tex
 # Weak IV: estimation
 
 - There are a bunch of ways to do the IV analysis
-  - the classic one is `ivreg` in the `AER` package
+  - the classic one is `ivreg()` in the `AER` package
 - Other functions are more fully-featured, including robust SEs, clustering, and fixed effects
-  - `feols` in `fixest`
-  - `felm` in `lfe`
-  - `tsls` in `sem`
-  - `ivpack`
+  - `feols()` in `fixest`
+  - `felm()` in `lfe`
+  - `tsls()` in `sem`
+  - multile functions in `ivpack`
 
-- We'll be using `feols` from `fixest`
+- We'll be using `feols()` from `fixest`
 
 ---
 
@@ -526,7 +526,7 @@ thef <- fitstat(iv_model3, 'ivf')[["ivf1::x3"]][["stat"]]
 
 # Weak IV: overidentification test
 
-- We can do this using `fitstat` in `fixest`
+- We can do this using `fitstat()` in `fixest`
 
 ```{r, echo = TRUE}
 set.seed(7)
