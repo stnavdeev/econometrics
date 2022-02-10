@@ -1,5 +1,5 @@
 ---
-title: "Regression Discontinuity Design"
+title: "Regression discontinuity design"
 subtitle: "Tutorial 6"
 date: "Stanislav Avdeev"
 output:
@@ -13,9 +13,9 @@ output:
       countIncrementalSlides: false
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include = FALSE}
 options(htmltools.dir.version = FALSE) 
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, dpi = 200, fig.width = 8, fig.height = 5)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, dpi = 200, fig.width = 8, fig.height = 4.5)
 library(tidyverse)
 library(dagitty)
 library(ggdag)
@@ -57,147 +57,33 @@ theme_metro_regtitle <- function(x) {
 }
 ```
 
-# Regression discontinuity
+# Goal for today's tutorial
 
-- Regression discontinuity design (RDD) is currently the darling of the econometric world for estimating causal effects without running an experiment
-
-The basic idea is this:
-
-- We look for a treatment that is assigned on the basis of being above/below a *cutoff value* of a continuous variable, for example:
-- if a candidate gets 50.1% of the vote they're in, 40.9% and they're out
-- if you're 65 years old you get Medicaid, if you're 64.99 years old you don't
-- if you score above 75, you'll be admitted into a "gifted and talented" (GATE) program
-
-We call these continuous variables "running variables" because we *run along them* until we hit the cutoff
+1. Discuss (fuzzy) regression discontinuity design - RDD
+1. Discuss functional form, bandwidth, and controls in RDD
+1. Check assumptions of RDD
+1. Discuss sensitivity checks
 
 ---
 
-# Regression discontinuity
+# RDD
 
-- First, let's simulate the dataset
-
-```{r, echo=TRUE, eval=TRUE}
-set.seed(1000)
-rdd.data <- tibble(test = runif(1000)*100) %>%
-  mutate(GATE = test >= 75) %>%
-  mutate(earn = runif(1000)*40+10*GATE+test/2)
-```
-
----
-
-# Regression discontinuity
-
-- Notice that the y-axis here is *In GATE*, not the outcome
-
-```{r, echo=FALSE, eval=TRUE, fig.width=7, fig.height=5.5}
-ggplot(rdd.data,aes(x=test,y=GATE)) +
-  geom_point() +
-  theme_pubr() +
-  geom_vline(aes(xintercept=75),col='red') +
-  labs(x='Test Score',
-       y='In GATE')
-```
+- The basic idea of RDD is to look for a treatment that is assigned on the basis of being above/below a **cutoff value** of a continuous variable, for example
+  - if a candidate gets $50.1\%$ of the vote they're in, $40.9\%$ and they're out
+  - if you're $65.1$ years old you get Medicaid, if you're $64.9$ years old you don't
+  - if you score above $75$, you'll be admitted into a "gifted and talented" (GATE) program
+- We call these continuous variables **running variables** because we run along them until we hit the cutoff
+- Basically, the idea is that right around the cutoff, treatment is **randomly assigned**
+  - if you have a test score of $74.9$ (not high enough for GATE), you're basically the same as someone who has a test score of $75.1$ (just barely high enough)
+- So we have two groups - the just-barely-missed-outs and the just-barely-made-its - that are basically exactly the same except that one happened to get treatment
+  - this gives us the effect of treatment **for people who are right around the cutoff** - LATE
 
 ---
 
-# Regression discontinuity
+# RDD: graphically
 
-- Here's how it looks when we consider the actual outcome
-
-```{r, echo=FALSE, eval=TRUE, fig.width=7, fig.height=5.5}
-ggplot(rdd.data,aes(x=test,y=earn,color=GATE)) +
-  geom_point() +
-  theme_pubr() +
-  geom_vline(aes(xintercept=75),col='red')+
-  labs(x='Test Score',
-       y='Earnings')
-```
-
----
-
-# Regression discontinuity
-
-- If we look at the relationship between treatment and going to college, we'll be picking up the fact that higher test scores make you more likely to go to college anyway
-
-```{r, dev='CairoPNG', echo=FALSE, fig.width=6,fig.height=4}
-dag <- dagify(earn~GATE+Test,
-              GATE~Test,
-              coords=list(
-                x=c(earn=3,GATE=1,Test=2.5),
-                y=c(earn=1,GATE=1.5,Test=2)
-              )) %>% tidy_dagitty()
-ggdag_classic(dag,node_size=20) + 
-  theme_dag_blank()
-```
-
----
-
-# Regression discontinuity
-
-- Except, that's not actually what the diagram looks like. Test only affects GATE to the extent that it makes you be above the 75 cutoff
-
-```{r, dev='CairoPNG', echo=FALSE, fig.width=6,fig.height=4}
-dag <- dagify(earn~GATE+Test,
-              Above~Test,
-              GATE~Above,
-              coords=list(
-                x=c(earn=3,GATE=1,Test=2.5,Above=1.75),
-                y=c(earn=1,GATE=1.5,Test=2,Above=1.75)
-              )) %>% tidy_dagitty()
-ggdag_classic(dag,node_size=20) + 
-  theme_dag_blank()
-```
-
----
-
-# Regression discontinuity
-
-- Basically, the idea is that *right around the cutoff*, treatment is randomly assigned
-- If you have a test score of 74.9 (not high enough for gifted-and-talented), you're basically the same as someone who has a test score of 75.0 (just barely high enough)
-- So we have two groups - the just-barely-missed-outs and the just-barely-made-its, that are basically exactly the same except that one happened to get treatment
-- A perfect description of what we're looking for in a control group
-- So if we just focus around the cutoff, it's basically random which side of the line you're on
-- But we get variation in treatment
-- This specifically gives us the effect of treatment *for people who are right around the cutoff* - "local average treatment effect" (we still won't know the effect of being put in gifted-and-talented for someone who gets a 30)
-
----
-
-# Regression discontinuity
-
-- A very basic idea of this, before we even get to regression, is to create a *binned chart* 
-- And see how the bin values jump at the cutoff
-- A binned chart chops the Y-axis up into bins
-- Then takes the average Y value within that bin
-- Then, we look at how those X bins relate to the Y binned values
-- If it looks like a pretty normal, continuous relationship, then JUMPS UP at the cutoff X-axis value, that tells us that the treatment itself must be doing something
-
----
-
-# Simulation
-
-The true effect is $10$
-
-```{r, echo=TRUE, eval=TRUE}
-#Choose a "bandwidth" of how wide around the cutoff to look (arbitrary in our example)
-#Bandwidth of 2 with a cutoff of 75 means we look from 75-2 to 75+2
-bandwidth <- 2
-#Just look within the bandwidth
-rdd <- rdd.data %>% filter(abs(75-test) < bandwidth) %>%
-  #Create a variable indicating we're above the cutoff
-  mutate(above = test >= 75) %>%
-  #And compare our outcome just below the cutoff to just above
-  group_by(above) %>% summarize(earn = mean(earn))
-rdd
-#Our effect looks just about right
-rdd$earn[2] - rdd$earn[1]
-```
-
----
-
-# Graphically
-
-```{r, dev='CairoPNG', echo=FALSE, fig.width=8,fig.height=7}
-df_graph <- data.frame(xaxisTime=runif(300)*20) %>%
+```{r, echo=FALSE, fig.width = 5, fig.height = 5.5}
+df <- data.frame(xaxisTime=runif(300)*20) %>%
   mutate(Y = .2*xaxisTime+3*(xaxisTime>10)-.1*xaxisTime*(xaxisTime>10)+rnorm(300),
          state="1",
          groupX=floor(xaxisTime)+.5,
@@ -207,19 +93,17 @@ df_graph <- data.frame(xaxisTime=runif(300)*20) %>%
   mutate(mean_Y=mean(Y)) %>%
   ungroup() %>%
   arrange(groupX)
-
 dffull <- rbind(
   #Step 1: Raw data only
-  df_graph %>% mutate(groupLine=NA,cutLine=NA,mean_Y=NA,state='1. Start with raw data.'),
+  df %>% mutate(groupLine=NA,cutLine=NA,mean_Y=NA,state='1. Start with raw data.'),
   #Step 2: Add Y-lines
-  df_graph %>% mutate(cutLine=NA,state='2. What differences in Y are explained by Running Variable?'),
+  df %>% mutate(cutLine=NA,state='2. What differences in Y are explained by Running Variable?'),
   #Step 3: Collapse to means
-  df_graph %>% mutate(Y = mean_Y,state="3. Keep only what's explained by the Running Variable."),
+  df %>% mutate(Y = mean_Y,state="3. Keep only what's explained by the Running Variable."),
   #Step 4: Zoom in on just the cutoff
-  df_graph %>% mutate(mean_Y = ifelse(xaxisTime > 9 & xaxisTime < 11,mean_Y,NA),Y=ifelse(xaxisTime > 9 & xaxisTime < 11,mean_Y,NA),groupLine=NA,state="4. Focus just on what happens around the cutoff."),
+  df %>% mutate(mean_Y = ifelse(xaxisTime > 9 & xaxisTime < 11,mean_Y,NA),Y=ifelse(xaxisTime > 9 & xaxisTime < 11,mean_Y,NA),groupLine=NA,state="4. Focus just on what happens around the cutoff."),
   #Step 5: Show the effect
-  df_graph %>% mutate(mean_Y = ifelse(xaxisTime > 9 & xaxisTime < 11,mean_Y,NA),Y=ifelse(xaxisTime > 9 & xaxisTime < 11,mean_Y,NA),groupLine=NA,state="5. The jump at the cutoff is the effect of treatment."))
-
+  df %>% mutate(mean_Y = ifelse(xaxisTime > 9 & xaxisTime < 11,mean_Y,NA),Y=ifelse(xaxisTime > 9 & xaxisTime < 11,mean_Y,NA),groupLine=NA,state="5. The jump at the cutoff is the effect of treatment."))
 p <- ggplot(dffull,aes(y=Y,x=xaxisTime))+geom_point()+
   geom_vline(aes(xintercept=10),linetype='dashed')+
   geom_point(aes(y=mean_Y,x=groupX),color="red",size=2)+
@@ -227,8 +111,8 @@ p <- ggplot(dffull,aes(y=Y,x=xaxisTime))+geom_point()+
   geom_vline(aes(xintercept=cutLine))+
   geom_segment(aes(x=10,xend=10,
                    y=ifelse(state=='5. The jump at the cutoff is the effect of treatment.',
-                            filter(df_graph,groupLine==9)$mean_Y[1],NA),
-                   yend=filter(df_graph,groupLine==10)$mean_Y[1]),size=1.5,color='blue')+
+                            filter(df,groupLine==9)$mean_Y[1],NA),
+                   yend=filter(df,groupLine==10)$mean_Y[1]),size=1.5,color='blue')+
   scale_color_colorblind()+
   scale_x_continuous(
     breaks = c(5, 15),
@@ -237,185 +121,225 @@ p <- ggplot(dffull,aes(y=Y,x=xaxisTime))+geom_point()+
   labs(title = 'The Effect of Treatment on Y using Regression Discontinuity \n{next_state}')+
   transition_states(state,transition_length=c(6,16,6,16,6),state_length=c(50,22,12,22,50),wrap=FALSE)+
   ease_aes('sine-in-out')+
+  theme_metro_regtitle() + 
   exit_fade()+enter_fade()
-
-animate(p,nframes=80)
+animate(p, nframes=150)
 ```
 
 ---
 
-# Regression discontinuity in regression
+# RDD: same slope
 
-- First, we need to *transform our data*
-- We need a "Treated" variable that's `TRUE` when treatment is applied - above or below the cutoff
-- Then, we are going to want a bunch of things to change at the cutoff. This will be easier if the running variable is *centered around the cutoff*. So we'll turn our running variable $X$ into $X - cutoff$ and call that $XCentered$
-
-Let's start with the simple linear version:
-
-$$ Y = \beta_0 + \beta_1XCentered + \beta_2Treated + \beta_3Treated\times XCentered +\varepsilon $$
-- $\beta_2$ is how the intercept jumps - that's the RDD effect
-- $\beta_3$ is how the slope changes - that's the RKD effect
-- Sometimes the effect of interest is the interaction term - the change in slope. This answers the question "does the effect of $X$ on $Y$ change at the cutoff? This is called a "regression kink" design
+- The most basic version of RDD allows for a jump but forces the slope to be the **same** on either side
+$$Y_i = \beta_0 + \beta_1 Treated_i + \beta_2 XC_i + U_i$$
+where 
+  - $Treated_i$ is a binary variable equal to $1$ if you are above the cutoff
+  - $XC_i$ is the running variable that is centered around the cutoff, i.e. $XC_i = X_i - Cutoff$
+  - $\beta_1$ is how the intercept jumps - that is the RDD effect
+- Remember that the RDD estimates the average treatment effect among those just **around the cutoff** - LATE
 
 ---
 
-# Regression discontinuity in regression
+# RDD: simulation
 
-The true effect is $0.7$
+- Let us simulate a dataset with the same slope
 
-```{r, echo=TRUE, eval=TRUE}
-set.seed(2000)
-df <- tibble(X = runif(1000)) %>%
-  mutate(treated = X > .5) %>%
-  mutate(X_centered = X - .5) %>%
-  mutate(Y = X_centered + .7*treated + .5*X_centered*treated + rnorm(1000,0,.3))
-lm(Y ~ treated*X_centered, data = df)
+```{r, echo = TRUE}
+set.seed(7)
+df <- tibble(X = runif(500),
+             Treated = ifelse(X > 0.5, 1, 0),
+             XC = X - 0.5,
+             Y = 0.7*Treated + XC + rnorm(500, 0, 0.3))
 ```
-
-You can take this basic interaction-with-cutoff design idea and use it to look at how *anything* changes before and after cutoff, not just the level of $Y$. You could look at how the *slope* changes ("regression kink")
-
----
-
-# Graphically
-
-- The true model is an RDD effect of $0.7$, with a slope of $1$ to the left of the cutoff and a slope of $1.5$ to the right
 
 ```{r, echo = FALSE}
-set.seed(2000)
-df <- tibble(X = runif(1000)) %>%
-  mutate(treated = X > .5) %>%
-  mutate(X_centered = X - .5) %>%
-  mutate(Y = X_centered + .7*treated + .5*X_centered*treated + rnorm(1000,0,.3))
-  
-ggplot(df, aes(x = X, y = Y, group = treated)) + 
+df %>%
+  arrange(X) %>%
+  slice(c(256:259)) %>%
+  knitr::kable()
+```
+
+---
+
+# RDD: simulation
+
+```{r, echo = TRUE}
+# The true effect is 0.7
+m <- lm(Y ~ Treated + XC, df)
+```
+
+```{r, echo = FALSE}
+msummary(m, stars = TRUE, gof_omit = '^(?!Num)')
+```
+
+---
+
+# RDD: varying slopes
+
+- Typically, you will want to let the slope **vary** to either side
+- In effect, we are fitting an entirely different regression line on each side of the cutoff
+- We can do this by using the following regression
+
+$$Y_i = \beta_0 + \beta_1Treated_i + \beta_2 XC_i + \beta_3Treated_i \times XC_i + U_i$$
+where 
+  - $\beta_1$ is how the intercept jumps - that's the RDD effect
+  - $\beta_3$ is how the slope changes - that's the RKD effect
+
+---
+
+# RDD: simulation
+
+Let us simulate a dataset with the same slope
+
+```{r, echo = TRUE}
+set.seed(7)
+df <- tibble(X = runif(500),
+             Treated = ifelse(X > 0.5, 1, 0),
+             XC = X - 0.5,
+             Y = 0.7*Treated + XC + 0.5*Treated*XC + rnorm(500, 0, 0.3))
+```
+
+```{r, echo = FALSE}
+df %>%
+  arrange(X) %>%
+  slice(c(256:259)) %>%
+  knitr::kable()
+```
+
+---
+
+# RDD: simulation
+
+```{r, echo = TRUE}
+# The true RDD effect is 0.7, and the true RKD effect is 0.5
+m <- lm(Y ~ Treated*XC, df)
+```
+
+```{r, echo = FALSE}
+msummary(m, stars = TRUE, gof_omit = '^(?!Num)')
+```
+
+---
+
+# RDD: graphically
+
+- The true model is an RDD effect of $0.7$ with a slope of $1$ to the left of the cutoff and a slope of $1.5$ to the right, so the RKD effect is $0.5$
+
+```{r, echo = FALSE}
+ggplot(df, aes(x = XC, y = Y, group = Treated)) + 
   geom_point() + 
   geom_smooth(method = 'lm', color = 'red', se = FALSE, size = 1.5) + 
-  geom_vline(aes(xintercept = .5), linetype = 'dashed') + 
+  geom_vline(aes(xintercept = 0), linetype = 'dashed') + 
   theme_metro() + 
-  geom_segment(aes(x = .5, xend = .5, y = 0, yend = .73), color = 'blue', size = 2) + 
-  annotate(geom = 'label', x = .5, y = .73, label = 'RDD Effect',color = 'blue', size = 16/.pt, hjust = 1.05)
+  geom_segment(aes(x = 0, xend = 0, y = -.03, yend = .73), color = 'blue', size = 2) + 
+  labs(x = 'Running Variable Centered on Cutoff',
+       y = 'Outcome') +
+  annotate(geom = 'label', x = 0, y = .73, label = 'RDD Effect', color = 'blue', size = 16/.pt, hjust = 1.05)
 ```
 
 ---
 
 # Choices
 
-- Bandwidth choice
-- Functional form 
+- Bandwidth
+- Functional form
 - Controls
 
 ---
 
-# Bandwidth choice
+# Choices: bandwidth
 
-- The idea of RDD is that people *just around the cutoff* are very much comparable
-- Basically random if your test score is 74 vs. 76 if the cutoff is 75, for example
-- So people far away from the cutoff aren't too informative. At best they help determine the slope of the fitted lines
-- So we might limit our analysis within just a narrow window around the cutoff
-- This makes the exogenous-at-the-jump assumption more plausible, and lets us worry less about functional form (over a narrow range, not too much difference between a linear term and a square), but on the flip side reduces our sample size considerably
-- Imbens and Gelman (2018) show that the "naive" RDD estimators place high weights on observations far from the threshold
-- So it's better to drop these observations
-
----
-
-# Bandwidth choice
-
-- RDD generally uses data only from the observations in a given range around the cutoff
-- Or at least weights them less the further away they are from cutoff
-- How wide should the bandwidth be?
-- There's a big wide literature on *optimal bandwidth selection* which balances the addition of bias (from adding people far away from the cutoff who may have back doors) vs. variance (from adding more people so as to improve estimator precision)
-- We won't be doing this by hand, we can often rely on an RDD command to do this for us
-- The `rdrobust` package in R implements some state of the art literature on this subject.
+- The idea of RDD is that people **just around the cutoff** are very much comparable
+- So people far away from the cutoff are not too informative
+  - at best they help determine the slope of the fitted lines
+- So we might limit our analysis within just a **narrow window** around the cutoff
+- This makes the **exogenous-at-the-jump assumption** more plausible
+  - this lets us worry less about functional form over a narrow range, as there is not too much difference between a linear and a square term
+  - but it reduces our sample size considerably
+- There's a big literature on **optimal bandwidth selection** which balances the addition of bias (from adding people far away from the cutoff) vs. variance (from adding more people so as to improve estimator precision)
+- Gelman & Imbens (2019) show that the "naive" RDD estimators place high weights on observations far from the threshold
+  - so it's better to drop these observations
 
 ---
 
-# Bandwidth choice
+# Choices: bandwidth
 
-- Pay attention to the sample sizes, accuracy (true value $0.7$) and standard errors
+- Pay attention to the accuracy, standard errors, and sample sizes
 
 ```{r, echo = TRUE}
-m1 <- lm(Y~treated*X_centered, data = df)
-m2 <- lm(Y~treated*X_centered, data = df %>% filter(abs(X_centered) < .25))
-m3 <- lm(Y~treated*X_centered, data = df %>% filter(abs(X_centered) < .1))
-m4 <- lm(Y~treated*X_centered, data = df %>% filter(abs(X_centered) < .05))
-m5 <- lm(Y~treated*X_centered, data = df %>% filter(abs(X_centered) < .01))
-export_summs(m1,m2,m3,m4,m5, statistics = c(N = 'nobs'), coefs = 'treatedTRUE')
+# The true effect is 0.7
+m1 <- lm(Y ~ Treated*XC, df)
+m2 <- lm(Y ~ Treated*XC, df %>% filter(abs(XC) < 0.25))
+m3 <- lm(Y ~ Treated*XC, df %>% filter(abs(XC) < 0.1))
+m4 <- lm(Y ~ Treated*XC, df %>% filter(abs(XC) < 0.05))
+m5 <- lm(Y ~ Treated*XC, df %>% filter(abs(XC) < 0.01))
+```
+
+```{r, echo = FALSE}
+msummary(list(m1, m2, m3, m4, m5), stars = TRUE, gof_omit = '^(?!Num)', coef_omit = "Int|XC")
 ```
 
 ---
 
-# Functional form
+# Choices: functional form
 
-- Why fit a straight line on either side? If the true relationship is curvy this will give us the wrong result
-- We can be much more flexible. As long as we fit some sort of line on either side, we can look for the jump
-- The way to do this is with polynomials
-
-$$Y = \beta_0 + \beta_1XCentered + \beta_2XCentered^2 + \beta_3Treated + $$
-
-$$\beta_4Treated\times XCentered + \beta_5Treated\times XCenrtered^2 + \varepsilon$$
-
-- $\beta_3$ remains our "jump at the cutoff" - our RDD estimate
+- Why do we fit only a straight line on either side? 
+  - if the true relationship is curvy this will give us the wrong result
+- We can be much more flexible, by including polynomials
+$$Y_i = \beta_0 + \beta_1Treated_i + \beta_2 XC_i + \beta_3Treated_i \times XC_i$$
+$$+ \beta_4 XC_i^2 + \beta_5 Treated_i \times XC_i^2 + U_i$$
+where
+  - $\beta_1$ remains our jump at the cutoff - the RDD estimate
 
 ---
 
-# Functional form
-
-The true effect is $0.7$
-
-```{r}
-lm(Y ~ X_centered*treated + I(X_centered^2)*treated, data = df)
-```
-
----
-
-# Functional form
+# Choices: functional form
 
 - The interpretation is the same as before - look for the jump
 - We want to be careful with polynomials though, and not add too many
-- Remember, the more polynomial terms we add, the stranger the behavior of the line at *either end* of the range of data
-- And the cutoff is at the far-right end of the pre-cutoff data and the far-left end of the post-cutoff data
-- So we can get illusory effects generated by having too many terms
-- A common approach is to use *non-parametric* regression or *local linear regression*
-- This doesn't impose any particular shape. And it's easy to get a prediction on either side of the cutoff
-- This allows for non-straight lines without dealing with the issues polynomials bring us
+  - remember, the more polynomial terms we add, the stranger the behavior of the line at either end of the range of data
+  - so we can get illusory effects generated by having too many terms
+- A common approach is to use **non-parametric** regression or **local linear regression**
+  - this does not impose any particular shape
+  - and it's easy to get a prediction on either side of the cutoff
+  - this allows for non-straight lines without dealing with polynomials
 
 ---
 
-# Functional form
-
-- Looking purely just at the cutoff and making no use of the space *away* from the cutoff throws out a lot of useful information
-- We know that the running variable is related to outcome, so we can probably improve our *prediction* of what the value on either side of the cutoff should be if we *use data away from the cutoff to help with prediction* than if we *just use data near the cutoff*, which is what that animation does
-- We can do this with OLS
-- The bin plot we did can help us pick a functional form for the slope
-
----
-
-# Functional form
+# Choices: functional form
 
 - Let's look at the same data with a few different functional forms
-- Remember, the RDD effect is the jump at the cutoff. The TRUE effect here will be $0.7$, and the TRUE model is an order-2 polynomial
-
-```{r, echo = FALSE}
-set.seed(500)
-```
 
 ```{r, echo = TRUE}
-tb <- tibble(Running = runif(200)) %>%
-  mutate(Y = 1.5*Running - .6*Running^2 + .7*(Running > .5) + rnorm(200, 0, .25)) %>%
-  mutate(X_centered = Running - .5, Treated = Running > .5)
+set.seed(7)
+df <- tibble(X = runif(500),
+             Treated = ifelse(X > 0.5, 1, 0),
+             XC = X - 0.5,
+             Y = 0.7*Treated + XC + 0.6*XC^2 + rnorm(500, 0, 0.3))
+```
+
+```{r, echo = FALSE}
+df %>%
+  arrange(X) %>%
+  slice(c(256:259)) %>%
+  knitr::kable()
 ```
 
 ---
 
-# Functional form
+# Choices: functional form
 
-```{r, echo  =FALSE}
-m <- lm(Y~Treated, data = tb)
+```{r, echo = TRUE}
+# The true effect is 0.7, and the true model is an order-2 polynomial
+m <- lm(Y ~ Treated, df)
+```
+
+```{r, echo = FALSE}
 jump <- coef(m)[2]
 
-ggplot(tb, aes(x = X_centered, y = Y, group = Treated)) + geom_point() + 
+ggplot(df, aes(x = XC, y = Y, group = Treated)) + geom_point() + 
   #geom_smooth(method = 'lm', se = FALSE) + 
-  geom_line(aes(y = tb %>% group_by(Treated) %>% mutate(YM=mean(Y)) %>% pull(YM)),
+  geom_line(aes(y = df %>% group_by(Treated) %>% mutate(YM=mean(Y)) %>% pull(YM)),
             color = 'blue') +
   theme_pubr() + 
   labs(x = 'Running Variable Centered on Cutoff',
@@ -425,13 +349,17 @@ ggplot(tb, aes(x = X_centered, y = Y, group = Treated)) + geom_point() +
 
 ---
 
-# Functional form
+# Choices: functional form
 
-```{r, echo  =FALSE}
-m <- lm(Y~X_centered*Treated, data = tb)
-jump <- coef(m)[3]
+```{r, echo = TRUE}
+# The true effect is 0.7, and the true model is an order-2 polynomial
+m <- lm(Y ~ Treated*XC, df)
+```
 
-ggplot(tb, aes(x = X_centered, y = Y, group = Treated)) + geom_point() + 
+```{r, echo = FALSE}
+jump <- coef(m)[2]
+
+ggplot(df, aes(x = XC, y = Y, group = Treated)) + geom_point() + 
   geom_smooth(method = 'lm', se = FALSE) + 
   theme_pubr() + 
   labs(x = 'Running Variable Centered on Cutoff',
@@ -441,14 +369,18 @@ ggplot(tb, aes(x = X_centered, y = Y, group = Treated)) + geom_point() +
 
 ---
 
-# Functional form
+# Choices: functional form
 
-```{r, echo  =FALSE}
-m <- lm(Y~X_centered*Treated + I(X_centered^2)*Treated, data = tb)
-jump <- coef(m)[3]
+```{r, echo = TRUE}
+# The true effect is 0.7, and the true model is an order-2 polynomial
+m <- lm(Y ~ Treated*XC + Treated*I(XC^2), df)
+```
 
-ggplot(tb, aes(x = X_centered, y = Y, group = Treated)) + geom_point() + 
-  geom_smooth(method = 'lm', se = FALSE, formula = y~ x + I(x^2)) + 
+```{r, echo = FALSE}
+jump <- coef(m)[2]
+
+ggplot(df, aes(x = XC, y = Y, group = Treated)) + geom_point() + 
+  geom_smooth(method = 'lm', se = FALSE, formula = y ~ x + I(x^2)) + 
   theme_pubr() + 
   labs(x = 'Running Variable Centered on Cutoff',
        y = 'Outcome',
@@ -457,14 +389,18 @@ ggplot(tb, aes(x = X_centered, y = Y, group = Treated)) + geom_point() +
 
 ---
 
-# Functional form
+# Choices: functional form
 
-```{r, echo  =FALSE}
-m <- lm(Y~X_centered*Treated + I(X_centered^2)*Treated + I(X_centered^3)*Treated, data = tb)
-jump <- coef(m)[3]
+```{r, echo = TRUE}
+# The true effect is 0.7, and the true model is an order-2 polynomial
+m <- lm(Y ~ Treated*XC + Treated*I(XC^2) + Treated*I(XC^3), df)
+```
 
-ggplot(tb, aes(x = X_centered, y = Y, group = Treated)) + geom_point() + 
-  geom_smooth(method = 'lm', se = FALSE, formula = y~ x + I(x^2) + I(x^3)) + 
+```{r, echo = FALSE}
+jump <- coef(m)[2]
+
+ggplot(df, aes(x = XC, y = Y, group = Treated)) + geom_point() + 
+  geom_smooth(method = 'lm', se = FALSE, formula = y ~ x + I(x^2) + I(x^3)) + 
   theme_pubr() + 
   labs(x = 'Running Variable Centered on Cutoff',
        y = 'Outcome',
@@ -473,14 +409,18 @@ ggplot(tb, aes(x = X_centered, y = Y, group = Treated)) + geom_point() +
 
 ---
 
-# Functional form
+# Choices: functional form
 
-```{r, echo  =FALSE}
-m <- lm(Y~X_centered*Treated + I(X_centered^2)*Treated + I(X_centered^3)*Treated + I(X_centered^4)*Treated + I(X_centered^5)*Treated + I(X_centered^6)*Treated + I(X_centered^7)*Treated + I(X_centered^8)*Treated, data = tb)
-jump <- coef(m)[3]
+```{r, echo = TRUE}
+m <- lm(Y ~ Treated*XC + Treated*I(XC^2) + Treated*I(XC^3) + Treated*I(XC^4) + 
+       Treated*I(XC^5) + Treated*I(XC^6) + Treated*I(XC^7) + Treated*I(XC^8), df)
+```
 
-ggplot(tb, aes(x = X_centered, y = Y, group = Treated)) + geom_point() + 
-  geom_smooth(method = 'lm', se = FALSE, formula = y~ poly(x,8)) + 
+```{r, echo = FALSE}
+jump <- coef(m)[2]
+
+ggplot(df, aes(x = XC, y = Y, group = Treated)) + geom_point() + 
+  geom_smooth(method = 'lm', se = FALSE, formula = y ~ poly(x,8)) + 
   theme_pubr() + 
   labs(x = 'Running Variable Centered on Cutoff',
        y = 'Outcome',
@@ -489,16 +429,21 @@ ggplot(tb, aes(x = X_centered, y = Y, group = Treated)) + geom_point() +
 
 ---
 
-# Functional form
+# Choices: functional form
 
-```{r, echo  =FALSE}
-tb <- tb %>%
-  arrange(X_centered)
-m1 <- loess(Y ~ X_centered, data = tb %>% filter(!Treated))
-m2 <- loess(Y ~ X_centered, data = tb %>% filter(Treated))
-jump <- predict(m2)[1]-utils::tail(predict(m1),1)
+```{r, echo = TRUE}
+# The true effect is 0.7, and the true model is an order-2 polynomial
+# The estimated model is recommended by Gelman & Imbens (2019)
+```
 
-ggplot(tb, aes(x = X_centered, y = Y, group = Treated)) + geom_point() + 
+```{r, echo = FALSE}
+df <- df %>%
+  arrange(XC)
+m1 <- loess(Y ~ XC, df %>% filter(Treated == 0))
+m2 <- loess(Y ~ XC, df %>% filter(Treated == 1))
+jump <- predict(m2)[1] - utils::tail(predict(m1),1)
+
+ggplot(df, aes(x = XC, y = Y, group = Treated)) + geom_point() + 
   geom_smooth(method = 'loess', se = FALSE) + 
   theme_pubr() + 
   labs(x = 'Running Variable Centered on Cutoff',
@@ -508,78 +453,65 @@ ggplot(tb, aes(x = X_centered, y = Y, group = Treated)) + geom_point() +
 
 ---
 
-# Functional form
+# Choices: functional form
 
-- Avoid higher-order polynomials
-- Even the "true model" can be worse than something simpler sometimes
-- And fewer terms makes more sense too once we apply a bandwidth and zoom in
-- Be very suspicious if your fit veers wildly off right around the cutoff
-- Consider a nonparametric approach
+- A conclusion is to **avoid** higher-order polynomials
+  - even the true model can be worse than something simpler sometimes
+  - and fewer terms makes more sense too, once we apply a bandwidth and zoom in
+  - consider a nonparametric approach
+- Gelman & Imbens (2019) argue that controlling for global high-order polynomials in RDD has three major problems
+  - noisy estimates
+  - sensitivity to the degree of the polynomial
+  - poor coverage of confidence intervals
+- Be very suspicious if your fit is wildly off right around the cutoff
 
 ---
 
-# Controls
+# Choices: controls
 
 - Generally you don't need control variables in an RDD
-- If the design is valid, you've closed all back doors. That's sort of the whole point
-- Although maybe we want some if we have a wide bandwidth - this will remove some of the bias
-- Still, we can get real value from having access to control variables. How?
-- Control variables allow us to perform *placebo tests* of our RDD model
-- We can rerun our RDD model, but simply use a control variable as the outcome
-- We should not find any effect (outside of the levels expected by normal sampling variation)
-- You can run these for *every control variable you have*
-
----
-
-# Balance
-
-- One thing that's so great about RDD is that, since it's basically random whether you're on one side of the cutoff or another, there shouldn't be other back doors
-- It's a form of within variation that's *so narrow* it basically closes everything
-- We can check this by seeing if other variables differ on either side of the line
+  - if the design is valid, RDD is almost like a randomised experiment
+- Although maybe we want some controls if we a bandwidth is **wide** 
+  - this will remove some of the bias
+- Control variables also allow us to perform **placebo tests** of our RDD model
+  - we can rerun our RDD model, but simply use a **control** variable as the **outcome**
+  - we should not find any effect
+  - you can run these for every control variable you have
 
 ---
 
 # Assumptions
 
-- We knew there must be some assumptions lurking around here
-- Some are more obvious (we should be using the correct functional form)
-- Others are trickier. What are we assuming about the error term and endogeneity here?
-- Specifically, we are assuming that *the only thing jumping at the cutoff is treatment*
-- Sort of like parallel trends, but maybe more believable since we've narrowed in so far
-- For example, if having an income below 150% of the poverty line gets you access to food stamps AND to job training, then we can't really use that cutoff to get the effect of just food stamps
+- We knew there must be some assumptions
+  - some are more obvious, i.e. we should be using the correct functional form
+  - others are trickier, i.e. what are we assuming about the error term and endogeneity?
+- Specifically, we are assuming that the only thing jumping at the cutoff is **treatment**
+  - sort of like parallel trends, but maybe more believable since we've narrowed in 
+- For example, if having an income below $150\%$ of the poverty line gets you access to food stamps **and** to job training, then we can't really use that cutoff to get the effect of **just** food stamps
 - The only thing different about just above/just below should be treatment
-- What if the running variable is *manipulated*?
+  - but what if the running variable is **manipulated**?
 
 ---
 
-# Manipulated running variables
+# Assumptions: bunching
 
-- Imagine you're a teacher grading the gifted-and-talented exam. You see someone with an 74 and think "aww, they're so close! I'll just give them an extra point..."
-- Suddenly, that treatment is a lot less randomly assigned around the cutoff
-- If there's manipulation of the running variable around the cutoff, we can often see it in the presence of *lumping*
-- In other words, there's a big cluster of observations to one side of the cutoff and a seeming gap missing on the other side
+- Imagine you are a teacher grading the gifted-and-talented exam. You see someone with an $74$ and think "they are so close, I'll just give them an extra point"
+  - suddenly, that treatment is a lot less randomly assigned around the cutoff
+- If there's manipulation of the running variable around the cutoff, we can often see it in the presence of **bunching**
+  - in other words, there is a big **cluster of observations** to one side of the cutoff and a seeming gap missing on the other side
 - How can we check this?
-- We can look graphically by just checking for a jump at the cutoff in *number of observations* after binning
+  - we can look graphically by just checking for a jump at the cutoff in **number of observations** after binning
+  - we can use the **McCrary density test** in `rddensity` package
 
 ---
 
-# Manipulated running variables
+# Assumptions: bunching
 
-- Here's an example from the real world in medical research - statistically, p-values *should* be uniformly distributed
-- But it's hard to get insignificant results published in some journals. So people might "p-hack" until they find some form of analysis that's significant, and also we have heavy selection into publication based on $p < .05$. Can't use that cutoff for an RDD
-
-
-![p-value graph from Perneger & Combescure, 2017](p_value_distribution.png)
-
----
-
-# Manipulated running variables
-
-- The first one looks pretty good. We have one that looks not-so-good on the right
+- The first one looks pretty good. The second one looks not-so-good
 
 ```{r, echo = FALSE}
 df_bin_count <- df %>%
-  # Select breaks so that one of hte breakpoints is the cutoff
+  # Select breaks so that one of the breakpoints is the cutoff
   mutate(X_bins = cut(X, breaks = 0:10/10)) %>%
   group_by(X_bins) %>%
   count()
@@ -587,7 +519,7 @@ df_bin_count <- df %>%
 bad_bins <- df_bin_count 
 bad_bins$n <- sample(df_bin_count$n, 10)
 bad_bins$n[5] <- 20
-bad_bins$n[6] <- 160
+bad_bins$n[6] <- 100
 bad_bins$Type <- 'Bad'
 df_bin_count %>%
   mutate(Type = 'Good') %>%
@@ -600,7 +532,7 @@ df_bin_count %>%
   geom_col() + 
   theme_metro() +
   theme(axis.text.x = element_text(angle = 90)) + 
-  labs(y = 'Percent', x = "X") + 
+  labs(y = '%', x = "X") + 
   geom_vline(aes(xintercept = 5.5), linetype = 'dashed') +
   scale_y_continuous(labels = scales::percent, limits = c(0,.2)) +
   facet_wrap('Type')
@@ -608,100 +540,82 @@ df_bin_count %>%
 
 ---
 
-# Manipulated running variables
+# Assumptions: bunching
 
-- Another thing we can do is do a "placebo test"
-- Check if variables *other than treatment or outcome* vary at the cutoff
-- We can do this by re-running our RDD but just swapping out some other variable for our outcome
-- If we get a significant jump, that's bad. That tells us that *other things are changing at the cutoff* which implies some sort of manipulation (or just super lousy luck)
+```{r, echo = TRUE}
+library(rddensity)
+test_density <- rddensity(df$X, c = 0.5)
+```
+
+- The p-value of a t-test $0.8959$ shows no manipulation
+
+```{r, echo = FALSE}
+summary(test_density)
+```
 
 ---
 
-# Fuzzy regression discontinuity
+# Assumptions: bunching
+
+```{r, echo = TRUE, fig.width = 4.5, fig.height = 2.2}
+plot_density_test <- rdplotdensity(rdd = test_density, X = df$X)
+```
+
+- Notice that the confidence intervals overlap substantially
+
+---
+
+# Fuzzy RDD
 
 - What if treatment is not determined sharply by the cutoff?
-- We can account for this with a model designed to take this into account
-- Specifically, we can use something called two-stage least squares (instrumental variables) to handle these sorts of situations
-- Basically, two-stage least squares estimates how much the chances of treatment go up at the cutoff, and scales the estimate by that change
-
----
-
-# Fuzzy regression discontinuity
-
-- Notice that the y-axis here isn't the outcome, it's "percentage treated"
-
-```{r, echo = FALSE}
-set.seed(2000)
-df <- tibble(X = runif(1000)) %>%
-  mutate(treatassign = .05 + .3*(X > .5)) %>%
-  mutate(rand = runif(1000)) %>%
-  mutate(treatment = treatassign > rand) %>%
-  mutate(Y = .2 + .4*X + .5*treatment + rnorm(1000)) %>%
-  mutate(X_center = X - .5) %>%
-  mutate(above_cut = X > .5)
-df %>%
-  mutate(X_bins = cut(X, breaks = 0:10/10)) %>%
-  group_by(X_bins) %>%
-  summarize(n = mean(treatment)) %>%
-  ggplot(aes(x = X_bins, y = n)) + 
-  geom_col() + 
-  labs(x = "X", y = "Proportion Treated") + 
-  theme_metro_regtitle() + 
-  theme(axis.text.x = element_text(angle = 90)) + 
-  geom_vline(aes(xintercept = 5.5), linetype = 'dashed')
-```
-
----
-
-# Fuzzy regression discontinuity
-
-- We can perform this using `feols` from **fixest**, giving it two treatment-response functions
-- The first is an RDD specification where we use "treatment" - i.e. whether you were actually treated
-- The second uses the same RDD specification, but replaces "treatment" with "above the cutoff"
-
----
-
-# Fuzzy regression discontinuity
-
-```{r, echo = FALSE}
-set.seed(10000)
-fuzz <- tibble(Running = runif(150)) %>%
-  mutate(Treat = (.1 + .5*Running + .5*(Running > .5)) %>%
-           map_dbl(function(x) min(x, 1)) %>%
-           map_dbl(function(x) sample(c(1,0), 1, prob = c(x, 1-x)))) %>%
-  mutate(Y = 1 + Running + 2*Treat + rnorm(150)*.5) %>%
-  mutate(Runbin = cut(Running, 0:10/10)) %>%
-  group_by(Runbin) %>%
-  mutate(av_treat = mean(Treat),
-         av_out = mean(Y))
-ggplot(fuzz , aes(x = Running, y = Treat)) + 
-  geom_point() + 
-  geom_point(data = fuzz %>% group_by(Runbin) %>% slice(1), aes(x = Running, y = av_treat),
-             color = 'red', size = 2) +
-  geom_smooth(aes(group = Running > .5), method = 'lm', color = 'blue', se = FALSE) +
-  geom_vline(aes(xintercept = .5), linetype = 'dashed') + 
-  ggpubr::theme_pubr() + 
-  labs(x = 'Running Variable', y = 'Treated')
-```
-
----
-
-# Fuzzy regression discontinuity
-
+  - we can account for this with a model designed to take this into account
+- Specifically, we can use the IV method
+  - basically, IV estimates how much the **chances of treatment** go up at the cutoff, and scales the **estimate of treatment** by that change (remember $4^{th}$ TA about LATE)
+  - we can perform the IV method using `feols()` in `fixest`
 - What happens if we just do RDD as normal? 
-- The effect is understated because we have some untreated in the post-cutoff and treated in the pre-cutoff
-- So with a positive effect the pre-cutoff value goes up (because we mix some treatment effect in there) and the post-cutoff value goes down (since we mix some untreated in there), bringing them closer together and shrinking the effect estimate
+  - the effect is **underestimated** because we have some untreated in the post-cutoff and treated in the pre-cutoff
 
 ---
 
-# Fuzzy regression discontinuity
+# Fuzzy RDD: simulation
+
+- Let us simulate a dataset with imperfect compliance
+
+```{r, echo = TRUE}
+set.seed(77)
+df_fuzzy <- tibble(X = runif(500),
+                   above_cut = ifelse(X > 0.5, 1, 0),
+                   XC = X - 0.5,
+                   treatassign = 0.5*XC + 0.5*above_cut,
+                   random = runif(500),
+                   Treated = ifelse(treatassign > random, 1, 0),
+                   Y = 0.7*Treated + XC + rnorm(500, 0, 0.3))
+```
 
 ```{r, echo = FALSE}
-ggplot(fuzz , aes(x = Running, y = Y)) + 
+df_fuzzy %>%
+  arrange(X) %>%
+  slice(c(266:269)) %>%
+  knitr::kable()
+```
+
+---
+
+# Fuzzy RDD: simulation
+
+- Notice that the y-axis here is not the outcome, it is the percentage treated
+
+```{r, echo = FALSE}
+df_fuzzy <- df_fuzzy %>%
+  mutate(Runbin = cut(X, 0:10/10)) %>%
+  group_by(Runbin) %>%
+  mutate(av_treat = mean(treatassign),
+         av_out = mean(Y))
+ggplot(df_fuzzy, aes(x = X, y = treatassign)) + 
   geom_point() + 
-  geom_point(data = fuzz %>% group_by(Runbin) %>% slice(1), aes(x = Running, y = av_out),
+  geom_point(data = df_fuzzy %>% group_by(Runbin) %>% slice(1), aes(x = X, y = av_treat),
              color = 'red', size = 2) +
-  geom_smooth(aes(group = Running > .5), method = 'lm', color = 'blue', se = FALSE) +
+  geom_smooth(aes(group = X > .5), method = 'lm', color = 'blue', se = FALSE) +
   geom_vline(aes(xintercept = .5), linetype = 'dashed') + 
   ggpubr::theme_pubr() + 
   labs(x = 'Running Variable', y = 'Treated')
@@ -709,129 +623,97 @@ ggplot(fuzz , aes(x = Running, y = Y)) +
 
 ---
 
-# Fuzzy regression discontinuity
-
-- The true effect is $2$
+# Fuzzy RDD: simulation
 
 ```{r, echo = TRUE}
-fuzz <- fuzz %>%
-  mutate(Above = Running >= .5)
-mreg <- lm(Y ~ Running*Above, data = fuzz)
-msummary(list(Y = mreg), stars = TRUE, gof_omit = 'AIC|BIC|F|Lik|Adj')
+# The true effect is 0.7
+without_fuzzy <- lm(Y ~ above_cut*XC, df_fuzzy)
+predict_treat <- lm(Treated ~ above_cut*XC, df_fuzzy)
+fuzzy_rdd     <- feols(Y ~ 1 | Treated*XC ~ above_cut*XC, df_fuzzy)
 ```
-
----
-
-# Fuzzy regression discontinuity
-
-- The true effect is $2$
 
 ```{r, echo = FALSE}
-msummary(list(Y = mreg), stars = TRUE, gof_omit = 'AIC|BIC|F|Lik|Adj')
+msummary(list(without_fuzzy, predict_treat, fuzzy_rdd), stars = TRUE, gof_omit = '^(?!Num)', coef_omit = "Int|XC")
 ```
 
 ---
-# Fuzzy regression discontinuity
 
-- We can scale by how much the treatment prevalence jumped... if the chance of being treated only went up by 50%, then the effect we see should be 50% as large, so let's adjust that away
+# RDD: estimation
+
+- The `rdrobust` package has the `rdrobust()` function which runs RDD with
+  - optimal bandwidth selection
+  - options for fuzzy RD
+  - bias correction
+  - lots of options (including the addition of covariates)
 
 ```{r, echo = TRUE}
-mreg <- lm(Y ~ Running*Above, data = fuzz)
-mtr <- lm(Treat ~ Running*Above, data = fuzz)
-```
-
----
-
-# Fuzzy regression discontinuity
-
-- We can try literally dividing the effect on $Y$ by the effect on $Treated$: `r round(mreg$coefficients[3], 3)` / `r round(mtr$coefficients[3], 3)` = `r round(mreg$coefficients[3] / mtr$coefficients[3], 3)`
-
-```{r, echo = FALSE}
-msummary(list(Y = mreg, Treated = mtr), stars = TRUE, gof_omit = 'AIC|BIC|F|Lik|Adj')
-```
-
----
-
-# Fuzzy regression discontinuity
-
-- Or can use instrumental variables (IV) for this, with being above the cutoff as an instrument of treatment 
-
-```{r, echo = TRUE}
-ivr <- ivreg(Y ~ Running*Treat | Running*Above, data = fuzz)
-```
-
----
-
-# Fuzzy regression discontinuity
-
-```{r, echo = FALSE}
-msummary(list('Instrumental Variables' = ivr), stars = TRUE, gof_omit = 'AIC|BIC|F|Lik|Adj')
-```
-
----
-
-# Regression discontinuity in action
-
-- There are additional estimation details that are difficult to do yourself
-- There are optimal bandwidth selection operators
-- There is bias introduced by taking points away from the cutoff, but also available corrections for that bias
-- We probably want to use a command that does this stuff for us
-
----
-
-# Regression discontinuity in action
-
-- The **rdrobust** package has the `rdrobust` function which runs regression discontinuity with:
-  - Options for fuzzy RD
-  - Optimal bandwidth selection
-  - Bias correction
-  - Lots of options (including the addition of covariates)
-
----
-
-# Regression discontinuity in action
-
-- The true effect is $0.7$
-
-```{r, echo = TRUE, eval = FALSE}
+# The true effect is 0.7
 library(rdrobust)
-m <- rdrobust(tb$Y, tb$Running, c = .5)
+m <- rdrobust(df$Y, df$X, c = 0.5)
 ```
+
+- We can estimate the RDD model by specifying
+  - `Y` - a dependent variable
+  - `X` - a running variable
+  - `c` - a cutoff
+  - `p` - the number of polynomials (it applies polynomials more locally than our OLS models do - it avoids weird corner predictions)
+  - `h` - a bandwidth size (chosen automatically) 
+  - `fuzzy` - actual treatment outside of the running variable/cutoff combo (IV)
 
 ---
 
-# Regression discontinuity in action
+# RDD: estimation
 
-- The true effect is $0.7$
-
-```{r, echo = FALSE, eval = TRUE}
+```{r, echo = FALSE}
 summary(m)
 ```
 
 ---
 
-# Regression discontinuity in action
+# RDD: estimation
 
-- Or, easily plot the results. Note the default uses order-4 polynomial unlike `rdrobust` which is local linear
+- A previous model chose the bandwidth of $0.212$
+- A common approach to sensitivity analysis is to use 
+  - the ideal bandwidth
+  - twice the ideal
+  - half the ideal
+  - and see if the estimate changes substantially
 
-```{r, echo = TRUE, eval = FALSE}
-rdplot(tb$Y, tb$Running, c = .5)
+```{r, echo = TRUE}
+# The true effect is 0.7
+library(rdrobust)
+m1 <- rdrobust(df$Y, df$X, c = 0.5, h = 0.212)
+m2 <- rdrobust(df$Y, df$X, c = 0.5, h = 2*0.212)
+m3 <- rdrobust(df$Y, df$X, c = 0.5, h = 0.5*0.212)
+```
+
+```{r, echo = FALSE}
+c(m1[["coef"]][[1]], m2[["coef"]][[1]], m3[["coef"]][[1]])
 ```
 
 ---
 
-# Regression discontinuity in action
+# RDD: estimation
 
-- The true effect is $0.7$
+- Now plot the results
+- Note that `rdplot()` uses order-4 polynomial, and `rdrobust()` - local linear regression
 
-```{r, echo = FALSE, eval = TRUE}
-rdplot(tb$Y, tb$Running, c = .5)
+```{r, echo = TRUE, dpi = 150, fig.width = 5, fig.height = 2.9}
+rdplot(df$Y, df$X, c = 0.5)
 ```
 
 ---
 
 # References
 
-- Huntington-Klein, N. The Effect: An Introduction to Research Design and Causality, Chapter 20, https://theeffectbook.net
-- Huntington-Klein, N. Causal Inference Class Slides, Week 12-13, https://github.com/stnavdeev/CausalitySlides
-- Huntington-Klein, N. Econometrics Course Slides, Week 8, https://github.com/stnavdeev/EconometricsSlides
+Books
+- Huntington-Klein, N. The Effect: An Introduction to Research Design and Causality, [Chapter 20: Regression Discontinuity](https://theeffectbook.net/ch-RegressionDiscontinuity.html)
+- Cunningham, S. Causal Inference: The Mixtape, [Chapter 6: Regression Discontinuity](https://mixtape.scunning.com/regression-discontinuity.html)
+
+Slides
+- Huntington-Klein, N. Econometrics Course, [Week 08: Regression Discontinuity](https://github.com/NickCH-K/EconometricsSlides/blob/master/Week_08/Week_08_Regression_Discontinuity.html)
+- Huntington-Klein, N. Causality Inference Course, [Lecture 12: Regression Discontinuity](https://github.com/NickCH-K/CausalitySlides/blob/main/Lecture_12_Regression_Discontinuity.html)
+- Huntington-Klein, N. Causality Inference Course, [Lecture 13: Estimating Regression Discontinuity](https://github.com/NickCH-K/CausalitySlides/blob/main/Lecture_13_Estimating_Regression_Discontinuity.html)
+
+Articles
+- Gelman, A., & Imbens, G. (2019). [Why High-Order Polynomials Should not be Used in Regression Discontinuity Designs](https://www.tandfonline.com/doi/abs/10.1080/07350015.2017.1366909). Journal of Business & Economic Statistics, 37(3), 447-456.

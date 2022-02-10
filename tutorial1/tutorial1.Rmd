@@ -694,7 +694,6 @@ plot(summary(qr2), parm = "x")
 Books
 - Huntington-Klein, N. The Effect: An Introduction to Research Design and Causality, [Chapter 19: Instrumental Variables](https://theeffectbook.net/ch-InstrumentalVariables.html)
 - Cunningham, S. Causal Inference: The Mixtape, [Chapter 7: Instrumental Variables](https://mixtape.scunning.com/instrumental-variables.html)
-- Adams, C. Learning Microeconometrics with R, Chapter 6: Estimating Selection Models
 
 Slides
 - Huntington-Klein, N. Econometrics Course, [Week 8: Instrumental Variables](https://github.com/NickCH-K/EconometricsSlides/blob/master/Week_08/Week_08_Instrumental_Variables.html)
