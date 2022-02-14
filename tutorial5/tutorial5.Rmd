@@ -410,7 +410,7 @@ where
   &= \alpha_t + \eta_g + \delta_{-3}D_{g1} + \delta_{-2}D_{g2} + \delta_{-1}D_{g3} + \delta_{0}D_{g4} + \delta_{1}D_{g5} + \delta_{2}D_{g6} + U_{gt}
 \end{align*}
 - To check parallel pre-trends, test if $\delta_{-3}, \delta_{-2}$ are jointly significant
-  - you can do so with `wald()` in `fixest` package
+  - you can do so with `linearHypothesis()` in `car` package
 - If they are jointly insignificant, there is no evidence of differences in prior trends
   - that doesn't **prove** parallel trends but failing this test would make prior trends **less plausible**
 - You can also check more complex time trends by including polynomial terms or other nonlinearities
