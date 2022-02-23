@@ -1,6 +1,6 @@
-# Econometrics II. Tutorials
+# Econometrics. Tutorials
 
-This is the repository for slides from the tutorials of the Econometrics II at the Tinbergen Insitute. The course can be found here: https://www.tinbergen.nl/courses/520/econometrics-ii
+This is the repository for slides from the tutorials of the Econometrics course at the Tinbergen Insitute. The course can be found here: https://www.tinbergen.nl/courses/520/econometrics-ii
 
 The outline of the course:
 1. Censored regression, selection model, weak IV, and quantile regression
