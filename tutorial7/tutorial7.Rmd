@@ -191,16 +191,16 @@ $$E[\hat{\beta}_{1, 2SLS}] = \beta_1 + \sum_{i=1}^{n} \mathrm{E}\left[\frac{\fra
 
 # Lecture 2: IV
 
+- To test exogeneity of $X_i$, use the Hausman test
+  - $H_0$: $X_i$ is exogenous, i.e. OLS and 2SLS are both consistent
+  - Test statistic: $H = \frac{(\hat{\beta}_{1, 2SLS} - \hat{\beta}_{1, OLS})^2}{\text{var}(\hat{\beta}_{1, 2SLS} - \hat{\beta}_{1, OLS})} \sim \chi^2 (1)$
+  - Reject if $H > \chi^2_\alpha (1)$
 - To test validity, use the Sargan test (over-identification required)
   - $H_0$: all instruments are valid
   - Find the second-stage residuals and regress them on the instruments
 $$U_i = \delta_0 + \delta_1 Z_{1, i}, + ... + \delta_M Z_{M,i} + e_i \sim \chi^2 (M - 1)$$
   - Test statistic: $H = nR^2$
   - Reject if $H > \chi^2_\alpha (M - 1)$
-- Alternatively, use the Hausman test
-  - $H_0$: $X_i$ is exogenous, i.e. OLS and 2SLS are both consistent
-  - Test statistic: $H = \frac{(\hat{\beta}_{1, 2SLS} - \hat{\beta}_{1, OLS})^2}{\text{var}(\hat{\beta}_{1, 2SLS} - \hat{\beta}_{1, OLS})} \sim \chi^2 (1)$
-  - Reject if $H > \chi^2_\alpha (1)$
 - IV is consistent if instrument is relevant (F-test $> 10$), but bias can be large
 $$\text { Bias IV } \sim \frac{\{\# \text { instruments }\} \times \rho(U_i, V_i) \times\left(1 - R_{\text {partial }}^{2}\right)}{\{\# \text { observations }\} \times R_{\text {partial }}^{2}}$$
 where $R_{\text {partial }}^{2}$ is the contribution of the instruments to $R^2$ in the first-stage
@@ -223,14 +223,14 @@ $$\frac{\text { Bias IV }}{\text { Bias OLS }} \approx \frac{\{\# \text { instru
 
 - Assume $N$ individuals observed over $T$ periods
 $$Y_{it} = \alpha + X_{it}' \beta + \eta_i + U_{it}$$
-  - $\eta_{t}$ is an individual specific effect which captures unobserved heterogeneity
+  - $\eta_{i}$ is an individual specific effect which captures unobserved heterogeneity
 - How to estimate this model?
   - Pooled OLS
   - Fixed-effects model
   - Random-effects model
 - Assumptions for all three models
-  - Strict exogeneity: $E[U_{it} | X_{i1}, ..., X_{iT}, \eta_i)] = 0$ allows for only static panel models
-  - Weak exogeneity: $E[U_{it} | X_{it}, \eta_i)] = 0$ allows models to be dynamic
+  - Strict exogeneity: $E[U_{it} | X_{i1}, ..., X_{iT}, \eta_i] = 0$ allows for only static panel models
+  - Weak exogeneity: $E[U_{it} | X_{it}, \eta_i] = 0$ allows models to be dynamic
 - Do you want to study dynamic panel models? Take the field course Applied Microeconometrics
   
 ---
@@ -240,7 +240,7 @@ $$Y_{it} = \alpha + X_{it}' \beta + \eta_i + U_{it}$$
 - Pooled OLS
 $$Y_{it} = \alpha + X_{it}' \beta + U_{it}^*$$
 where $U_{it}^* = \eta_i + U_{it}$
-- If $E[\eta_i | X_{i1}, ..., X_{iT})] \neq 0$, i.e. individual specific effects are correlated with regressors, the OLS estimator of $\beta$ is biased and inconsistent
+- If $E[\eta_i | X_{i1}, ..., X_{iT}] \neq 0$, i.e. individual specific effects are correlated with regressors, the OLS estimator of $\beta$ is biased and inconsistent
 - If $E[\eta_i | X_{i1}, ..., X_{iT}] = 0$, the OLS estimator of $\beta$ is unbiased and consistent, but we still have that $E[U_{it}^* U_{is}^*] \neq 0$ $\implies$ use clustered s.e.
 
 ---
@@ -305,7 +305,7 @@ $$\hat{E}_{it} = \rho \hat{E}_{it-1} + e_{it}$$
 
 - Random-effects model
 $$Y_{it} = \alpha + X_{it}' \beta + \eta_i + U_{it}$$
-where $\eta_i$ is random and $E(\eta_i | X_{i1}, ..., X_{iT}) = 0$
+where $\eta_i$ is random and $E[\eta_i | X_{i1}, ..., X_{iT}] = 0$
 - Estimation
   - Stack observations of all individuals $Y_i = X_i ' \beta + e_T \eta_i + U_i$
 - If $\sigma_{\eta}^2$ and $\sigma_{u}^2$ known, use the GLS estimator
@@ -324,18 +324,18 @@ where $\text{var}(e_T \eta_i + U_i) = \sigma^2_u (I_T + \frac{\sigma^2_{\eta}}{\
 - FE or RE model
   - RE can deal with time-invariant regressors
   - RE can be used to make predictions outside the sample
-  - RE has a stronger assumption that $E(\eta_i | X_{i1}, ..., X_{iT}) = 0$
+  - RE has a stronger assumption that $E[\eta_i | X_{i1}, ..., X_{iT}] = 0$
   - FE robust against correlation of individual effects and regressors
   - FE is less efficient and parameter estimates might be noisy
 - Use the Mundlak procedure, to test which model to use
   - Estimate the RE model
 $$Y_{it} = X_{it}' \beta + \bar{X}_{i}' \gamma + \omega_i + U_{it}$$
-where $\eta_i = \bar{X}_{i} \gamma + \omega_i$ and $\omega_i$ is a random effect that is uncorrelated with $X_{it}$ 
+where $\eta_i = \bar{X}_{i}' \gamma + \omega_i$ and $\omega_i$ is a random effect that is uncorrelated with $X_{it}$ 
   - $H_0: \gamma = 0$, i.e. the random effects model should be used
 - Alternative use the Hausman test
 $$H = (\hat{\beta}_{FE} - \hat{\beta}_{RE})'[\text{var}(\hat{\beta}_{FE}) - \text{var} (\hat{\beta}_{RE})]^{-1}(\hat{\beta}_{FE} - \hat{\beta}_{RE}) \sim \chi^2 (R)$$
 where $R$ is the number of time-varying regressors
-  - $H_0: E(\eta_i | X_{i1}, ..., X_{iT}) = 0$, i.e. RE and FE are consistent, but RE is more efficient
+  - $H_0: E[\eta_i | X_{i1}, ..., X_{iT}] = 0$, i.e. RE and FE are consistent, but RE is more efficient
 
 ---
 
@@ -382,8 +382,8 @@ $$Y_i = D_i Y^*_{1i} + (1 - D_i) Y^*_{0i}$$
 where $D_i = 1$ if a person received treatment
   - Estimate the sample means to get the estimators
 \begin{align*}
-  E(\hat{Y}^*_1 |D = 1) &= \frac{\sum_{i = 1}^N D_i Y_i}{\sum_{i = 1}^N D_i} \\
-  E(\hat{Y}^*_0 |D = 0) &= \frac{\sum_{i = 1}^N (1 - D_i) Y_i}{\sum_{i = 1}^N (1 - D_i)} \\
+  E[\hat{Y}^*_1 |D = 1] &= \frac{\sum_{i = 1}^N D_i Y_i}{\sum_{i = 1}^N D_i} \\
+  E[\hat{Y}^*_0 |D = 0] &= \frac{\sum_{i = 1}^N (1 - D_i) Y_i}{\sum_{i = 1}^N (1 - D_i)} \\
   \hat{ATE} = \hat{ATET} &= \frac{\sum_{i = 1}^N D_i Y_i}{\sum_{i = 1}^N D_i} - \frac{\sum_{i = 1}^N (1 - D_i) Y_i}{\sum_{i = 1}^N (1 - D_i)}
 \end{align*}
 - Potential outcomes model is equivalent to the difference-in-means estimator
@@ -551,7 +551,7 @@ $$Y_i = \beta_0 + \delta_1 (S_i - \bar{S})I(S_i< \bar{S}) + \delta_2 (S_i - \bar
   - Estimate the causal effect of $D_i$ on $Y_i$ at $S_i = \bar{S}$
 $$\frac{\delta_2 - \delta_1}{\gamma_2 - \gamma_1}$$
 - There is a treatment effect if
-$$\text{lim}_{S_i\uparrow \bar{S}} \frac{ \partial E(Y_i | S_i)}{\partial S_i} = \delta_1 \neq \delta_2 = \text{lim}_{S_i\downarrow \bar{S}} \frac{\partial E(Y_i | S_i)}{\partial S_i}$$
+$$\text{lim}_{S_i\uparrow \bar{S}} \frac{ \partial E[Y_i | S_i]}{\partial S_i} = \delta_1 \neq \delta_2 = \text{lim}_{S_i\downarrow \bar{S}} \frac{\partial E[Y_i | S_i]}{\partial S_i}$$
 
 ---
 
