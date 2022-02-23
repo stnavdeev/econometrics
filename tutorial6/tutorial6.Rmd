@@ -60,6 +60,7 @@ theme_metro_regtitle <- function(x) {
 # Goal for today's tutorial
 
 1. Discuss (fuzzy) regression discontinuity design - RDD
+1. Discuss regression kink design - RKD
 1. Discuss functional form, bandwidth, and controls in RDD
 1. Check assumptions of RDD
 1. Discuss sensitivity checks

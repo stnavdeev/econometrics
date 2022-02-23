@@ -673,7 +673,7 @@ ggplot(df, aes(x, y)) +
 - The red lines are the OLS estimate and its confidence interval
 - Lower and upper quantiles are well beyond the OLS estimate
 
-```{r, echo = FALSE, fig.width = 8, fig.height = 4.5}
+```{r, echo = FALSE, fig.width = 8, fig.height = 4.3}
 plot(summary(qr2), parm = "x")
 ```
 
