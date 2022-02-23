@@ -1,4 +1,6 @@
+*/.Rproj.users
 .Rhistory
 .RData
+.Ruserdata
 .Rproj.user
-.DS_Store
+*.pdf
