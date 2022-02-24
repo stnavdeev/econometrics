@@ -14,7 +14,7 @@ The outline of the course:
 The recommneded books are:
 1. The Effect: An Introduction to Research Design and Causality by Nick Huntington-Klein: https://theeffectbook.net/index.html
 2. Causal Inference: The Mixtape by Scott Cunningham: https://mixtape.scunning.com/index.html
-3. Microeconometrics: Methods and Applications by Colin Cameron and Pravin K. Trivedi.
+3. Microeconometrics: Methods and Applications by Colin Cameron and Pravin Trivedi.
 
 The slides are based on the teaching materials from:
 1. Econometrics Course by Nick Huntington-Klein: https://github.com/NickCH-K/EconometricsSlides
