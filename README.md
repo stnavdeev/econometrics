@@ -5,18 +5,18 @@ This is the repository for slides from the tutorials of the Econometrics course 
 The outline of the course:
 1. [Censored regression, selection model, weak IV, and quantile regression](https://github.com/stnavdeev/econometrics/blob/main/tutorial1/tutorial1.pdf)
 2. [Static linear panel data models](https://github.com/stnavdeev/econometrics/blob/main/tutorial2/tutorial2.pdf)
-3. Potential outcomes model, randomized experiments, and power analysis
-4. Natural experiments and LATE
-5. Difference-in-differences design
-6. Regression discontinuity design
-7. Summary of the Econometrics II course
+3. [Potential outcomes model, randomized experiments, and power analysis](https://github.com/stnavdeev/econometrics/blob/main/tutorial3/tutorial3.pdf)
+4. [Natural experiments and LATE](https://github.com/stnavdeev/econometrics/blob/main/tutorial4/tutorial4.pdf)
+5. [Difference-in-differences design](https://github.com/stnavdeev/econometrics/blob/main/tutorial5/tutorial5.pdf)
+6. [Regression discontinuity design](https://github.com/stnavdeev/econometrics/blob/main/tutorial6/tutorial6.pdf)
+7. [Summary of the Econometrics II course](https://github.com/stnavdeev/econometrics/blob/main/tutorial7/tutorial7.pdf)
 
 The slides are based on the teaching materials from:
-1. Econometrics Course by Huntington-Klein, N.: https://github.com/NickCH-K/EconometricsSlides
-2. Causality Inference Course by Huntington-Klein, N.: https://github.com/NickCH-K/CausalitySlides
-3. Applied Empirical Methods Course by Goldsmith-Pinkham P.: https://github.com/paulgp/applied-methods-phd
+1. Econometrics Course by Nick Huntington-Klein: https://github.com/NickCH-K/EconometricsSlides
+2. Causality Inference Course by Nick Huntington-Klein.: https://github.com/NickCH-K/CausalitySlides
+3. Applied Empirical Methods Course by Paul Goldsmith-Pinkham: https://github.com/paulgp/applied-methods-phd
 
 The recommneded books are:
-1. The Effect: An Introduction to Research Design and Causality by Huntington-Klein, N.: https://theeffectbook.net/index.html
-2. Causal Inference: The Mixtape by Cunningham, S.: https://mixtape.scunning.com/index.html
-3. Microeconometrics: Methods and Applications by Cameron, A.C. and P. Trivedi.
+1. The Effect: An Introduction to Research Design and Causality by Nick Huntington-Klein: https://theeffectbook.net/index.html
+2. Causal Inference: The Mixtape by Scott Cunningham: https://mixtape.scunning.com/index.html
+3. Microeconometrics: Methods and Applications by Colin Cameron and Pravin K. Trivedi.
