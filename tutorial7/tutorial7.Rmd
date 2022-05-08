@@ -1,5 +1,5 @@
 ---
-title: "Summary of the Econometrics II course"
+title: "Summary of the course"
 subtitle: "Tutorial 7"
 date: "Stanislav Avdeev"
 output:

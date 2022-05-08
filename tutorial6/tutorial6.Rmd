@@ -699,7 +699,7 @@ c(m1[["coef"]][[1]], m2[["coef"]][[1]], m3[["coef"]][[1]])
 - Now plot the results
 - Note that `rdplot()` uses order-4 polynomial, and `rdrobust()` - local linear regression
 
-```{r, echo = TRUE, dpi = 150, fig.width = 5, fig.height = 2.9}
+```{r, echo = TRUE, dpi = 150, fig.width = 5, fig.height = 2.8}
 rdplot(df$Y, df$X, c = 0.5)
 ```
 
