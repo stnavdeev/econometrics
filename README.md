@@ -22,6 +22,6 @@ The slides are based on the teaching materials from:
 2. Causality Inference Course by Nick Huntington-Klein: https://github.com/NickCH-K/CausalitySlides
 3. Applied Empirical Methods Course by Paul Goldsmith-Pinkham: https://github.com/paulgp/applied-methods-phd
 
-The code to generate all slides is availible in each folder in .Rmd format. If you knit these .Rmd files, you will create slides in .html format which is handy to open in a browser (there are a few dynamic graphs that work only in a browser). If you want to compile slides in .pdf format, then:
+The code to generate all slides is availible in each folder in .Rmd format. If you knit these .Rmd files, you will create slides in .html format which is handy to open in a browser (there are also a few dynamic graphs that work only in a browser). If you want to compile slides in .pdf format, then:
 - Knit .Rmd file that creates .html slides;
 - Type "pagedown::chrome_print("tutorial1.html", output="tutorial1.pdf")" without quotation marks in the R console to create .pdf slides (notice that a name "tutorial1.html" should should refer to the name of the set of slides you are creating).
