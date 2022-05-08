@@ -9,7 +9,7 @@ The outline of the course:
 4. [Natural experiments and LATE](https://github.com/stnavdeev/econometrics/blob/main/tutorial4/tutorial4.pdf)
 5. [Difference-in-differences design](https://github.com/stnavdeev/econometrics/blob/main/tutorial5/tutorial5.pdf)
 6. [Regression discontinuity design](https://github.com/stnavdeev/econometrics/blob/main/tutorial6/tutorial6.pdf)
-7. [Summary of the Econometrics II course](https://github.com/stnavdeev/econometrics/blob/main/tutorial7/tutorial7.pdf)
+7. [Summary of the course](https://github.com/stnavdeev/econometrics/blob/main/tutorial7/tutorial7.pdf)
 
 The recommneded books are:
 1. The Effect: An Introduction to Research Design and Causality by Nick Huntington-Klein: https://theeffectbook.net/index.html
