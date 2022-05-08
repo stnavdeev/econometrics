@@ -22,4 +22,4 @@ The slides are based on the teaching materials from:
 2. Causality Inference Course by Nick Huntington-Klein: https://github.com/NickCH-K/CausalitySlides
 3. Applied Empirical Methods Course by Paul Goldsmith-Pinkham: https://github.com/paulgp/applied-methods-phd
 
-The code to generate all slides is availible in each folder in .rmd format.
+The code to generate all slides is availible in each folder in .Rmd format.
