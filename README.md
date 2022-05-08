@@ -1,8 +1,9 @@
 # Econometrics
 
-This is the repository for slides for the PhD level course in Econometrics at the Tinbergen Institute, Amsterdam. The course can be found here: https://www.tinbergen.nl/courses/520/econometrics-ii
+This is the repository for slides for the PhD level course in Econometrics at the Tinbergen Institute, Amsterdam. 
+The course can be found here: https://www.tinbergen.nl/courses/520/econometrics-ii
 
-The outline of the course:
+The outline of the course ([syllabus](https://github.com/stnavdeev/econometrics/blob/main/syllabus.pdf)):
 1. [Censored regression, selection model, weak IV, and quantile regression](https://github.com/stnavdeev/econometrics/blob/main/tutorial1/tutorial1.pdf)
 2. [Static linear panel data models](https://github.com/stnavdeev/econometrics/blob/main/tutorial2/tutorial2.pdf)
 3. [Potential outcomes model, randomized experiments, and power analysis](https://github.com/stnavdeev/econometrics/blob/main/tutorial3/tutorial3.pdf)
