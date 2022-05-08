@@ -4,4 +4,5 @@
 .Ruserdata
 .Rproj.user
 .DS_Store
+.gitignore
 *.pdf
