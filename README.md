@@ -1,7 +1,7 @@
 # Econometrics
 
 This is the repository for slides for the PhD level course in Econometrics at the Tinbergen Institute, Amsterdam. 
-A short description of the course can be found on the university website: https://www.tinbergen.nl/courses/520/econometrics-ii
+A short description of the course can be found on the [university website](https://www.tinbergen.nl/courses/520/econometrics-ii).
 
 The outline of the course ([syllabus](https://github.com/stnavdeev/econometrics/blob/main/syllabus.pdf)):
 1. [Censored regression, selection model, weak IV, and quantile regression](https://github.com/stnavdeev/econometrics/blob/main/tutorial1/tutorial1.pdf)
@@ -13,14 +13,14 @@ The outline of the course ([syllabus](https://github.com/stnavdeev/econometrics/
 7. [Summary of the course](https://github.com/stnavdeev/econometrics/blob/main/tutorial7/tutorial7.pdf)
 
 The recommneded books are:
-1. The Effect: An Introduction to Research Design and Causality by Nick Huntington-Klein: https://theeffectbook.net/index.html
-2. Causal Inference: The Mixtape by Scott Cunningham: https://mixtape.scunning.com/index.html
+1. [The Effect: An Introduction to Research Design and Causality](https://theeffectbook.net/index.html) by Nick Huntington-Klein
+2. [Causal Inference: The Mixtape](https://mixtape.scunning.com/index.html) by Scott Cunningham
 3. Microeconometrics: Methods and Applications by Colin Cameron and Pravin Trivedi.
 
 The slides are based on the teaching materials from:
-1. Econometrics Course by Nick Huntington-Klein: https://github.com/NickCH-K/EconometricsSlides
-2. Causality Inference Course by Nick Huntington-Klein: https://github.com/NickCH-K/CausalitySlides
-3. Applied Empirical Methods Course by Paul Goldsmith-Pinkham: https://github.com/paulgp/applied-methods-phd
+1. [Econometrics Course](https://github.com/NickCH-K/EconometricsSlides) by Nick Huntington-Klein
+2. [Causality Inference Course](https://github.com/NickCH-K/CausalitySlides) by Nick Huntington-Klein
+3. [Applied Empirical Methods Course](https://github.com/paulgp/applied-methods-phd) by Paul Goldsmith-Pinkham.
 
 The code to generate all slides is availible in each folder in .Rmd format. If you knit these .Rmd files, you will create slides in .html format which is handy to open in a browser (there are also a few dynamic graphs that work only in a browser). If you want to compile slides in .pdf format, then:
 - Knit .Rmd file that creates .html slides;
