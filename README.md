@@ -15,7 +15,7 @@ The outline of the course ([syllabus](https://github.com/stnavdeev/econometrics/
 The recommneded books are:
 1. [The Effect: An Introduction to Research Design and Causality](https://theeffectbook.net/index.html) by Nick Huntington-Klein
 2. [Causal Inference: The Mixtape](https://mixtape.scunning.com/index.html) by Scott Cunningham
-3. Microeconometrics: Methods and Applications by Colin Cameron and Pravin Trivedi.
+3. [Microeconometrics: Methods and Applications](http://faculty.econ.ucdavis.edu/faculty/cameron/mmabook/mma.html) by Colin Cameron and Pravin Trivedi.
 
 The slides are based on the teaching materials from:
 1. [Econometrics Course](https://github.com/NickCH-K/EconometricsSlides) by Nick Huntington-Klein
