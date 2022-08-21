@@ -57,7 +57,7 @@ theme_metro_regtitle <- function(x) {
   - 6 TA sessions are about lecture material
   - the last session is primarily about exam and remaining questions about the course material (TBA)
 - Send me **any** questions you want to discuss before each TA session
-  - use Canvas or send me an email (s.avdeev@tinbergen.nl)
+  - use Canvas or send me an email (s.avdeev@uva.nl)
   - alternately, leave your questions anonymously here: https://onlinequestions.org (enter the event code 18631)
 
 ---
@@ -255,7 +255,7 @@ $$Y_i = \begin{cases} \mbox{} Y_i^* \ & \mbox{} \text{ if } I_i = 1 \\ \mbox{} \
   \end{array}\right]\right)
 \end{align*}
 
-- Note that the variance of the normal distribution is not identified in the probit model, so it is set to 1
+- Note that the variance of the normal distribution is not identified in the probit model, so it is set to $1$
 
 ---
 
@@ -413,8 +413,8 @@ msummary(list(ols_model, iv_model), stars = TRUE, gof_omit = '^(?!Num)', coef_om
 ```
 
 - $Z_1$ is a pretty effective instrument even if the correlation between $Z_1$ and $X_1$ is small
-  - check validity: $\text{corr} (Z_1, U_1) =$ `r round(cor(df$z1, df$u1), 3)`, pretty close to zero
-  - check relevance: $\text{corr} (X_1, Z_1) =$  `r round(cor(df$x1, df$z1), 3)`, so it's a weak instrument
+  - check validity: $\text{corr} (Z_1, U_1) =$ $`r round(cor(df$z1, df$u1), 3)`$, pretty close to zero
+  - check relevance: $\text{corr} (X_1, Z_1) =$  $`r round(cor(df$x1, df$z1), 3)`$, so it's a weak instrument
 
 ---
 
@@ -454,8 +454,8 @@ msummary(list(ols_model2, iv_model2), stars = TRUE, gof_omit = '^(?!Num)', coef_
 
 - In this case we get a better estimate by using the OLS estimator than by using IV 
 - Why? Because of the weak instrument problem and the bias
-  - check validity: $\text{corr} (Z_2, U_2) =$ `r round(cor(df$z2, df$u2), 3)`
-  - check relevance: $\text{corr} (X_2, Z_2) =$ `r round(cor(df$x2, df$z2), 3)`
+  - check validity: $\text{corr} (Z_2, U_2) =$ $`r round(cor(df$z2, df$u2), 3)`$
+  - check relevance: $\text{corr} (X_2, Z_2) =$ $`r round(cor(df$x2, df$z2), 3)`$
 
 ---
 
@@ -493,8 +493,8 @@ msummary(list(ols_model3, iv_model3), stars = TRUE, gof_omit = '^(?!Num)', coef_
 ```
 
 - Even though the correlation between $Z$ and $U$ is the same as previously, the strength of the instrument in explaining $X$ wins out and gives us a better estimator than OLS
-  - check validity: $\text{corr} (Z_2, U_2) =$ `r round(cor(df$z2, df$u2), 3)`
-  - check relevance: $\text{corr} (X_3, Z_2) =$ `r round(cor(df$x3, df$z2), 3)`
+  - check validity: $\text{corr} (Z_2, U_2) =$ $`r round(cor(df$z2, df$u2), 3)`$
+  - check relevance: $\text{corr} (X_3, Z_2) =$ $`r round(cor(df$x3, df$z2), 3)`$
 
 ---
 
@@ -510,7 +510,7 @@ iv_model3
 thef <- fitstat(iv_model3, 'ivf')[["ivf1::x3"]][["stat"]]
 ```
 
-- `r scales::number(thef, accuracy = 0.01)` is way above 10
+- $`r scales::number(thef, accuracy = 0.01)`$ is way above $10$
 - Lee, D., et al. (2021) discuss the potentially severe large-sample distortions from using conventional value of the F-test equal to $10$ and they suggest to use as a rule of thumb the minimum value of the F-test equal to $104.7$, which is needed to ensure a test with a significance level $0.05$
 
 ---

@@ -211,7 +211,7 @@ where $R_{\text {partial }}^{2}$ is the contribution of the instruments to $R^2$
 
 - IV is weak if $\text{cov} (Z_i, X_i)$ is small. Recall
 $$\text{plim}_{n \rightarrow \infty} \hat{\beta}_{1, 2SLS} = \frac{\text{cov}(Z_i, Y_i)}{\text{cov}(Z_i, X_i)}$$
-- When $\text{cov} (Z_i, X_i)$ is close to 0, i.e. instrument is irrelevant, then the sampling variation in $\text{cov} (Z_i, X_i)$ is not helpful to estimate $\beta_{1, 2SLS}$
+- When $\text{cov} (Z_i, X_i)$ is close to $0$, i.e. instrument is irrelevant, then the sampling variation in $\text{cov} (Z_i, X_i)$ is not helpful to estimate $\beta_{1, 2SLS}$
 - Weak instruments can be detected in the first-stage using a t-test or a F-test
   - Rule of thumb: instrument is weak if bias IV is larger than $10\%$ of the bias of OLS
 $$\frac{\text { Bias IV }}{\text { Bias OLS }} \approx \frac{\{\# \text { instruments }\}}{\{\# \text { observations }\} \times R_{\text {partial }}^{2}}$$
@@ -343,7 +343,7 @@ where $R$ is the number of time-varying regressors
 
 - The goal of policy evaluation is to obtain a causal effect of treatment on the outcome of interest
 - Potential outcomes model
-  - Each individual has 2 potential outcomes: $Y_{1i}^*$ if treated and $Y_{0i}^*$ if untreated
+  - Each individual has $2$ potential outcomes: $Y_{1i}^*$ if treated and $Y_{0i}^*$ if untreated
   - $\Delta_i = Y_{1i}^* - Y_{0i}^*$ - individual effect of participating in treatment (not observed)
   - This is the fundamental problem of causal inference
 - Treatment effects
@@ -471,7 +471,7 @@ Take the differences of expected values
   E[Y_{C1}] - E[Y_{C0}] &= (\alpha_1 + \eta_C) - (\alpha_0 + \eta_C) = \alpha_1 - \alpha_0 \\
   \text{DiD} &= (\alpha_1 + \delta - \alpha_0) - (\alpha_1 - \alpha_0) = \delta
 \end{align*}
-- DiD estimates ATET if there is a constant treatment effect $\delta$ or there are only 2 periods
+- DiD estimates ATET if there is a constant treatment effect $\delta$ or there are only $2$ periods
 
 ---
 
@@ -503,7 +503,7 @@ where
   - $t$ is time period
 - Impose the normalisation $\delta_{-1} = 0$, which is the coefficient for the last period before the treatment, otherwise you get perfect multicollinearity
 - If data sampling process or treatment is clustered, use clustered s.e.
-  - Abadie et al. 2017 discuss clustering
+  - Abadie et al. (2017) discuss clustering
 - Do you want to discuss clustering s.e. more? Take the core course Advanced Econometrics II
 
 ---
