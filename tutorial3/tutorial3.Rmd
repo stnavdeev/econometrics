@@ -188,7 +188,7 @@ msummary(not_random_modeled, stars = TRUE, gof_omit = '^(?!Num)')
   - in other words, when we see the estimate, we can claim that it's the causal effect
 - In the second non-randomized case `lm(Y ~ D, df)` does not identify the causal effect 
 - In the apples-to-apples comparison we could identify the causal effect
-  - practically by using RDD (we will discuss RDD in the $6^{\text{th}}$ toturial)
+  - practically by using RDD (we will discuss RDD in the $6^{\text{th}}$ tutorial)
 - Causal inference is all about figuring out what **model** we need to identify the effect
   - but what effects are we identifying?
 
@@ -217,7 +217,7 @@ $$ATE(X) = \mathbb{E}(Y_{1}^* - Y_{0}^* | X) = \mathbb{E}(Y_{1}^* | X) - \mathbb
   - want to know how effective a treatment **was** when it was applied? ATET
   - want to know how effective a treatment **was** when it was applied for males? ATE(X)
   - want to know how effective a treatment would be if applied **just a little more broadly?** Local Average Treatment Effect - LATE (next tutorial)
-- Different treatment effects are not wrong but we need to pay attention to which one we're getting, or else we may apply the result incorrectly
+- Different treatment effects are not wrong, but we need to pay attention to which one we're getting, or else we may apply the result incorrectly
   - a result could end up representing a different group than you're really interested in
 
 ---
@@ -270,7 +270,7 @@ msummary(list(m1, m2, m3, m4), stars = TRUE, gof_omit = '^(?!Num)', coef_omit = 
   - we just do not do it as often because we can't control the sample size anyway
   - and it is easier to get huge samples
 - You need to have a huge sample to reasonably study small effects
-  - so don't pursue effects that are likely to be really tiny, or at least tinier than your sample can handle
+  - so, don't pursue effects that are likely to be really tiny, or at least tinier than your sample can handle
   - if you run an underpowered study anyway and **do** get a significant result, it would be more likely to be a false positive than a true positive. That's **low power**
 
 ---
@@ -311,5 +311,5 @@ Books
 Slides
 - Huntington-Klein, N. Econometrics Course, [Week 8: Experiments](https://github.com/NickCH-K/EconometricsSlides/blob/master/Week_08/Week_08_Experiments.html)
 - Huntington-Klein, N. Causality Inference Course, [Lecture 3: Causality](https://github.com/NickCH-K/CausalitySlides/blob/main/Lecture_03_Causality.html) and [Lecture 18: Treatment Effects](https://github.com/NickCH-K/CausalitySlides/blob/main/Lecture_18_Treatment_Effects.html)
-- Goldsmith-Pinkham P. Applied Empirical Methods Course, [Week 1: Potential Outcomes and Directed Acylic Graphs](https://github.com/paulgp/applied-methods-phd/blob/main/lectures/01_po_dags.pdf)
+- Goldsmith-Pinkham P. Applied Empirical Methods Course, [Week 1: Potential Outcomes and Directed Acyclic Graphs](https://github.com/paulgp/applied-methods-phd/blob/main/lectures/01_po_dags.pdf)
 

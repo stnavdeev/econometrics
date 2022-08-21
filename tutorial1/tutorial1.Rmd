@@ -66,7 +66,7 @@ theme_metro_regtitle <- function(x) {
 
 - Due date: 11:59pm on Sundays (the first assignment is an exception: 11:59am on Tuesday)
 - Assignments are graded within a week from the deadline
-- Solutions will not be shared so if you want to discuss a specific exercise, let me know before the TA session (you submit your solutions on Sunday, thus, we can discuss any questions on the following TA session on Tuesday)
+- Solutions will not be shared so if you want to discuss a specific exercise, let me know before the TA session (you submit your solutions on Sunday. Thus, we can discuss any questions on the following TA session on Tuesday)
 
 ---
 
@@ -255,7 +255,7 @@ $$Y_i = \begin{cases} \mbox{} Y_i^* \ & \mbox{} \text{ if } I_i = 1 \\ \mbox{} \
   \end{array}\right]\right)
 \end{align*}
 
-- Note that the variance of the normal distribution is not identified in the probit model so it is set to 1
+- Note that the variance of the normal distribution is not identified in the probit model, so it is set to 1
 
 ---
 

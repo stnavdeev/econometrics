@@ -485,7 +485,7 @@ Take the differences of expected values
 - How to test the parallel trend assumption?
   - Check prior trends
   - Do placebo checks
-- If there is no support for parallel trend assumpition
+- If there is no support for parallel trend assumption
   - Include time-varying covariates or group specific trends 
   - DDD
   - Synthetic control group

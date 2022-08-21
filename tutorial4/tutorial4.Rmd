@@ -174,7 +174,7 @@ msummary(m, stars = TRUE, gof_omit = '^(?!Num)')
   - basically, it all still works, except the effect we get is not **the effect of treatment**, it's **the effect of being assigned to treatment**, which is different
   - this can still be handy, especially if treatment might be assigned the same way in the future
 - This will in general **underestimate** the effect of the treatment itself, since we include people in the "treated" category who were not actually treated, and people in the "untreated" category who were, so the two groups get closer together
-  - so we get a smaller effect
+  - so, we get a smaller effect
 
 ---
 

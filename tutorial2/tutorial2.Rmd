@@ -530,7 +530,7 @@ phtest(fixed_corr, random_corr)
 # Panel data inference
 - One of the assumptions of the regression model is that the error terms are independent of each other
   - however, we might imagine that some of the left variation is shared across all individuals, making them correlated with each other
-  - thus, not taking that into account would make the s.e. wrong
+  - thus, not taking that into account would make s.e. wrong
 - Two conditions need to hold for clustering to be necessary
   - first, there needs to be **treatment effect heterogeneity**. That is, the treatment effect must be quite different for different individuals
 - If that is true, there’s a second condition

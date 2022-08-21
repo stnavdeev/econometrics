@@ -304,7 +304,7 @@ msummary(m, stars = TRUE, gof_omit = '^(?!Num)')
 
 # DiD: inference
 
-- Always remember what is the level of your treatment
+- Always remember what the level of your treatment is
   - is your treatment assigned at the level of state?
   - is your treatment assigned at the level of university?
   - is your treatment assigned at the level of class?
@@ -390,7 +390,7 @@ where
 
 - You can check whether the assumption is plausible by seeing if **prior trends** are the same for treated and control groups
   - if we have multiple pre-treatment periods, was the gap changing a lot during that period?
-- If the two groups were already trending towards each other, or away from each other, before treatment, it is hard to believe that parallel trends holds
+- If the two groups were already trending towards each other, or away from each other, before treatment, it is hard to believe that parallel trends hold
 - They **probably** would have continued trending together/apart, breaking parallel trends
   - in this case we would mix up the continuation of the trend with the effect of treatment
 - Sometimes you can adjust for prior trends to fix parallel trends violations 
