@@ -1,16 +1,16 @@
 # Econometrics
 
 This is the repository for slides for the PhD level course in Econometrics at the Tinbergen Institute, Amsterdam. 
-A short description of the course can be found on the [university website](https://www.tinbergen.nl/courses/585/econometrics-ii).
+A short description of the course can be found on the [university website](https://tinbergen.nl/courses/course_periods=3/course_type=Core/fields=Econometrics).
 
-The outline of the course ([syllabus](https://github.com/stnavdeev/econometrics/blob/main/syllabus.pdf)):
-1. [Censored regression, selection model, weak IV, and quantile regression](https://github.com/stnavdeev/econometrics/blob/main/tutorial1/tutorial1.pdf)
-2. [Static linear panel data models](https://github.com/stnavdeev/econometrics/blob/main/tutorial2/tutorial2.pdf)
-3. [Potential outcomes model, randomized experiments, and power analysis](https://github.com/stnavdeev/econometrics/blob/main/tutorial3/tutorial3.pdf)
-4. [Natural experiments and LATE](https://github.com/stnavdeev/econometrics/blob/main/tutorial4/tutorial4.pdf)
-5. [Difference-in-differences design](https://github.com/stnavdeev/econometrics/blob/main/tutorial5/tutorial5.pdf)
-6. [Regression discontinuity design](https://github.com/stnavdeev/econometrics/blob/main/tutorial6/tutorial6.pdf)
-7. [Summary of the course](https://github.com/stnavdeev/econometrics/blob/main/tutorial7/tutorial7.pdf)
+The outline of the course ([syllabus](https://www.stnavdeev.com/econometrics/syllabus.pdf)):
+1. [Censored regression, selection model, weak IV, and quantile regression](https://www.stnavdeev.com/econometrics/tutorial1/tutorial1.html#1)
+2. [Static linear panel data models](https://www.stnavdeev.com/econometrics/tutorial2/tutorial2.html#1)
+3. [Potential outcomes model, randomized experiments, and power analysis](https://www.stnavdeev.com/econometrics/tutorial3/tutorial3.html#1)
+4. [Natural experiments and LATE](https://www.stnavdeev.com/econometrics/tutorial4/tutorial4.html#1)
+5. [Difference-in-differences design](https://www.stnavdeev.com/econometrics/tutorial5/tutorial5.html#1)
+6. [Regression discontinuity design](https://www.stnavdeev.com/econometrics/tutorial6/tutorial6.html#1)
+7. [Summary of the course](https://www.stnavdeev.com/econometrics/tutorial7/tutorial7.html#1)
 
 The recommneded books are:
 1. [The Effect: An Introduction to Research Design and Causality](https://theeffectbook.net/index.html) by Nick Huntington-Klein
